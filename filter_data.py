@@ -7,6 +7,8 @@ def filterData(data, emotions):
 	data["agree"] = data.id.map(agree_dict_2)
 	filtered_data = data[data.agree.str.len() > 0].drop_duplicates("id")
 
+	#todo remove neutral tags for entries that have emotion tags
+
 	filtered_data.to_csv(FILTERED_DATA_FILE)
 	print("")
 

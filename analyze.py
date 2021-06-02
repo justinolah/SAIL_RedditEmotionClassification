@@ -14,6 +14,7 @@ from nltk.stem import WordNetLemmatizer, PorterStemmer
 CSV_FILES = ["data/full_dataset/goemotions_1.csv", "data/full_dataset/goemotions_2.csv", "data/full_dataset/goemotions_3.csv"]
 FILTERED_DATA_FILE = "data/filtered_data.csv" 
 EMOTION_FILE = "data/emotions.txt"
+STOP_WORDS_FILE = "data/stopwords.txt"
 LEXICON = "data/NRC-Emotion-Lexicon.csv"
 MIN_WORD_LENGTH = 2
 
@@ -28,17 +29,18 @@ punctuation = "".join(punct_chars)
 replace = re.compile("[%s]" % re.escape(punctuation))
 
 
-def processText(text):
+def processText(text, stopwords):
 	text = text.lower()
 	text = re.sub(r"[0-9]", " ", text)
 	text = replace.sub(" ", text)
 	text = re.sub(r"\s+", " ", text)
 	text = text.strip()
 	words = text.split()
-	return " ".join([lemmatizer.lemmatize(word) for word in words if len(word) > MIN_WORD_LENGTH])
+	return " ".join([lemmatizer.lemmatize(word) for word in words if len(word) > MIN_WORD_LENGTH and word not in stopwords])
 
 def cleanText(data):
-	data.text = data.text.apply(processText)
+	stopwords = getStopWords()
+	data.text = data.text.apply(lambda x: processText(x,stopwords))
 	data = data[data.text.str.len() > 0]
 
 def CheckAgreement(ex, min_agreement, all_emotions, max_agreement=100):
@@ -54,6 +56,11 @@ def getData():
 
 def getFilteredData():
 	return pd.read_csv(FILTERED_DATA_FILE)
+
+def getStopWords():
+	with open(STOP_WORDS_FILE) as f:
+		stopwords = f.read().splitlines()
+	return stopwords
 
 def getLexicon():
 	return pd.read_csv(LEXICON).words.to_list()
@@ -104,7 +111,6 @@ def main():
 	plt.ylabel('Total')
 	plt.xlabel('Text Lengths')
 	plt.title("Distribution of Text Lengths")
-	#plt.show()
 	plt.savefig("plots/length_distributions.pdf", format="pdf")
 
 	print("Average text length:")
