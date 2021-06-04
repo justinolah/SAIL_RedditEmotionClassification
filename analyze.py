@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+from empath import Empath
 import string
 import re 
 import os
@@ -14,6 +15,8 @@ from nltk.stem import WordNetLemmatizer, PorterStemmer
 CSV_FILES = ["data/full_dataset/goemotions_1.csv", "data/full_dataset/goemotions_2.csv", "data/full_dataset/goemotions_3.csv"]
 FILTERED_DATA_FILE = "data/filtered_data.csv" 
 EMOTION_FILE = "data/emotions.txt"
+TRAIN_SET_FILE = "data/train.csv"
+TEST_SET_FILE = "data/test.csv"
 STOP_WORDS_FILE = "data/stopwords.txt"
 LEXICON = "data/NRC-Emotion-Lexicon.csv"
 MIN_WORD_LENGTH = 2
@@ -22,7 +25,7 @@ lemmatizer = WordNetLemmatizer()
 
 punct_chars = list((set(string.punctuation) | {
     "’", "‘", "–", "—", "~", "|", "“", "”", "…", "'", "`", "_",
-    "“", "´"
+    "“", "´", "♀️", "♂"
 }))
 punct_chars.sort()
 punctuation = "".join(punct_chars)
@@ -69,6 +72,12 @@ def getEmotions():
 	with open(EMOTION_FILE) as f:
 		emotions = f.read().splitlines()
 	return emotions
+
+def getTrainSet():
+	return pd.read_csv(TRAIN_SET_FILE)
+
+def getTestSet():
+	return pd.read_csv(TEST_SET_FILE)
 
 def main():
 	data = getData()
@@ -172,9 +181,14 @@ def main():
 	with open("tables/vocab_list.txt","w") as f:
 		f.write('\n'.join(vocab_list))
 
+	empath = Empath()
+	print("Empath lexicon total categories:", len(empath.analyze("Hell World")))
+
 	lexicon = getLexicon()
 	vocab_list = [word for word in vocab_list if word in lexicon]
 	print("Total words that are in NRC emotion lexicon:", len(vocab_list))
+
+
 
 
 
