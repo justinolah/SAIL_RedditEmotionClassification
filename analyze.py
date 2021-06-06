@@ -161,7 +161,7 @@ def main():
 				num_emotion1 = len(data[data[emotion1] == 1])
 				num_overlap = len(data[(data[emotion1] == 1) & (data[emotion2] == 1)])
 				perc = round(num_overlap/num_emotion1, 2)
-				print(f"{perc} of {emotion1} also has {emotion2}. (corr: {round(cor, 2)})")
+				print(perc, "of", emotion1, "also has", emotion2, "(corr:", round(cor, 2), ")")
 	print("")
 
 	#Process text to remove punctuation, extra whitespace, etc.
