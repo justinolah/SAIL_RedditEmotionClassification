@@ -6,9 +6,10 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.model_selection import GridSearchCV
 from analyze import *
-
 import liwc
+
 parse, category_names = liwc.load_token_parser('data/LIWC.dic')
 
 #Feature extractor for LIWC Lexicon
@@ -56,7 +57,6 @@ def main():
 
 	word_freq = pd.Series(' '.join(data.text).split()).value_counts()
 	vocab_list = sorted(word_freq[word_freq > 2].index)
-	print(len(vocab_list))
 
 	emotions = getEmotions()
 	emotions.remove("neutral")
@@ -69,12 +69,12 @@ def main():
 
 	features = FeatureUnion([
 		('liwc', LIWCFeatureExtractor()),
-    	('cvec', CountVectorizer(vocabulary=vocab_list))
+    	('cvec', CountVectorizer(vocabulary=vocab_list, binary=True))
     ])
 
 	logRegPipeline = Pipeline([
 		('feats', features),
-		('clf', OneVsRestClassifier(LogisticRegression(max_iter=1000, solver='sag'), n_jobs=1)),
+		('clf', OneVsRestClassifier(LogisticRegression(penalty='l2', max_iter=500, solver='sag'), n_jobs=1)),
 	])
 
 	x_train = train.text
@@ -82,6 +82,14 @@ def main():
 
 	y_train = train.labels.apply(lambda x: getYVector(x,len(emotions))).to_list()
 	y_test = test.labels.apply(lambda x: getYVector(x,len(emotions))).to_list()
+
+	pg = {'clf__estimator__C': [.3, 1, 3], 'feats__cvec__ngram_range' : [(1,1), (1,2)]}
+
+	grid = GridSearchCV(logRegPipeline, verbose=2, param_grid=pg, cv=5)
+	grid.fit(x_train, y_train)
+	print(grid.best_params_)
+	print(grid.best_score_)
+	return
 
 	print("Training model...")
 	logRegPipeline.fit(x_train, y_train)
