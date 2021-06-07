@@ -2,7 +2,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-from empath import Empath
 import string
 import re 
 import os
@@ -180,9 +179,6 @@ def main():
 
 	with open("tables/vocab_list.txt","w") as f:
 		f.write('\n'.join(vocab_list))
-
-	empath = Empath()
-	print("Empath lexicon total categories:", len(empath.analyze("Hell World")))
 
 	lexicon = getLexicon()
 	vocab_list = [word for word in vocab_list if word in lexicon]
