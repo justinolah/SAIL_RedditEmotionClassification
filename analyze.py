@@ -18,7 +18,7 @@ TRAIN_SET_FILE = "data/train.csv"
 TEST_SET_FILE = "data/test.csv"
 STOP_WORDS_FILE = "data/stopwords.txt"
 LEXICON = "data/NRC-Emotion-Lexicon.csv"
-MIN_WORD_LENGTH = 2
+MIN_WORD_LENGTH = 3
 
 lemmatizer = WordNetLemmatizer()
 
@@ -38,7 +38,7 @@ def processText(text, stopwords):
 	text = re.sub(r"\s+", " ", text)
 	text = text.strip()
 	words = text.split()
-	return " ".join([lemmatizer.lemmatize(word) for word in words if len(word) > MIN_WORD_LENGTH and word not in stopwords])
+	return " ".join([lemmatizer.lemmatize(word) for word in words if len(word) >= MIN_WORD_LENGTH and word not in stopwords])
 
 def cleanText(data):
 	stopwords = getStopWords()
