@@ -7,7 +7,7 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support, cla
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, cross_val_score
 from analyze import *
 import liwc
 
@@ -131,6 +131,15 @@ def main():
 
 	fit_hyperparameters(x_train, y_train, logRegPipeline)
 	trainModel(x_train, y_train, x_test, y_test, logRegPipeline, emotions)
+
+	#cross validation
+	all_models = [
+    	("log", logRegPipeline),
+    	("log_tfid", logRegPipeline_tfid),
+    ]
+ 
+	scores = [(name, cross_val_score(model, x_train, y_train, cv=5, verbose=3).mean()) for name, model in all_models]
+	print(scores)
 
 
 
