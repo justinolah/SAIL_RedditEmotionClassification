@@ -1,17 +1,20 @@
 import sklearn
+import liwc
 from collections import Counter
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support, classification_report
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, classification_report, multilabel_confusion_matrix
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.decomposition import SparsePCA, TruncatedSVD
+from sklearn.svm import LinearSVC
 from sklearn.model_selection import GridSearchCV, cross_val_score
-from analyze import *
-import liwc
+from helpers import *
 
 parse, category_names = liwc.load_token_parser('data/LIWC.dic')
+emoticons = getEmoticons()
 
 #Feature extractor for LIWC Lexicon
 class LIWCFeatureExtractor(BaseEstimator, TransformerMixin):
@@ -21,6 +24,18 @@ class LIWCFeatureExtractor(BaseEstimator, TransformerMixin):
 
     def transform(self, data, y=None):
     	return data.apply(getLIWCFeatures).to_list()
+
+    def fit(self, X, y=None):
+        return self
+
+#Feature extractor for punctuation, emojis, and emoticons
+class EmoticonsAndPunctuationExtractor(BaseEstimator, TransformerMixin):
+
+    def __init__(self):
+        pass
+
+    def transform(self, data, y=None):
+    	return data.apply(lambda x: getEmoticonsFeatures(x,emoticons)).to_list()
 
     def fit(self, X, y=None):
         return self
@@ -42,7 +57,9 @@ class textCleaner(BaseEstimator, TransformerMixin):
 
     def transform(self, data, y=None):
     	stopwords = getStopWords()
-    	return pd.Series([processText(text,stopwords) for text in data])
+    	data["raw_text"] = data.text.copy()
+    	data.text = data.text.apply(lambda x: processText(x,stopwords))
+    	return data
 
     def fit(self, X, y=None):
         return self
@@ -51,9 +68,9 @@ class textCleaner(BaseEstimator, TransformerMixin):
 def extractFeaturesBagOfWords(texts):
 	vectorizer = CountVectorizer(min_df=3, ngram_range=(1,2))
 	X = vectorizer.fit_transform(texts).toarray()
-	print(vectorizer.vocabulary_)
-	print("Vocabualry length:", len(vectorizer.vocabulary_))
-	print("Words ommited:",len(vectorizer.stop_words_))
+	#print(vectorizer.vocabulary_)
+	#print("Vocabualry length:", len(vectorizer.vocabulary_))
+	#print("Words ommited:",len(vectorizer.stop_words_))
 	return X
 
 def getYVector(labels, numEmotions):
@@ -72,20 +89,29 @@ def getLIWCFeatures(text):
 	for i, name in enumerate(category_names):
 		vec[i] = counts[name]/len(words)
 	return vec
+
+def getEmoticonsFeatures(text, emoticons):
+	textLength = len(text.split())
+	vec = [0] * len(emoticons)
+	for i, emote in enumerate(emoticons):
+		vec[i] = text.count(emote)/textLength
+	return vec
 		
 def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions):
 	print("Training model...")
 	pipeline.fit(x_train, y_train)
 	prediction = pipeline.predict(x_test)
 	accuracy = accuracy_score(y_test, prediction)
+	#conf = multilabel_confusion_matrix(y_test, prediction)
 	print("Subset Accuracy:", accuracy)
 	print("")
-	print(classification_report(y_test, prediction, target_names=emotions,zero_division=0))
+	print(classification_report(y_test, prediction, target_names=emotions, zero_division=0))
+	print("")
+	#print(conf)
 
-	#print("Neutral:", len([row for row in prediction if np.sum(row) == 0]))
 
 def fit_hyperparameters(x_train, y_train, pipeline):
-	pg = {'clf__estimator__C': [.3, 1, 3], 'feats__cvec__ngram_range' : [(1,1), (1,2), (2,2)]}
+	pg = {'clf__estimator__C': [.3, 1, 3], 'feats__counts__cvec__ngram_range' : [(1,1), (1,2), (2,2)]}
 	
 	grid = GridSearchCV(pipeline, verbose=3, param_grid=pg, cv=5)
 	grid.fit(x_train, y_train)
@@ -98,29 +124,59 @@ def main():
 
 	train = getTrainSet()
 	test = getTestSet()
+	cv = getCVSet()
+
+	#add column of pre processed text
+	cleanText(train)
+	cleanText(test)
+	cleanText(cv)
+
+	print("Training set length:", len(train))
+	print("Testing set length:", len(test))
+	print("Cross validation set length:", len(cv))
+	print("")
+
+	liwcPipe = Pipeline([('selector', ColumnSelector(column='text')), ('liwc', LIWCFeatureExtractor())])
+	cvecPipe = Pipeline([('selector', ColumnSelector(column='text')), ('cvec', CountVectorizer(min_df=3, binary=True, ngram_range=(1,2)))])
+	tfidPipe = Pipeline([('selector', ColumnSelector(column='text')), ('tfid', TfidfVectorizer(min_df=3, ngram_range=(1,2)))])
+	emotesPipe = Pipeline([('selector', ColumnSelector(column='raw_text')), ('emot', EmoticonsAndPunctuationExtractor())])
 
 	features = FeatureUnion([
-		('liwc', LIWCFeatureExtractor()),
-    	('cvec', CountVectorizer(min_df=3, binary=True, ngram_range=(1,2))),
+		('lex', liwcPipe),
+		('counts', cvecPipe),
+		('emotes', emotesPipe),
     ])
 
 	features_tfid = FeatureUnion([
-    	('liwc', LIWCFeatureExtractor()),
-    	('tfid', TfidfVectorizer(min_df=3, ngram_range=(1,1))),
+    	('lex', liwcPipe),
+		('counts', tfidPipe),
+		('emotes', emotesPipe),
     ])
 
 	logRegPipeline = Pipeline([
-		('selector', ColumnSelector('text')),
-		('cleaner', textCleaner()),
 		('feats', features),
 		('clf', OneVsRestClassifier(LogisticRegression(penalty='l2', max_iter=1000, solver='lbfgs'), n_jobs=1)),
 	])
 
+	logRegPipeline_tsvd = Pipeline([
+		('feats', features),
+		('tsvd', TruncatedSVD(n_components=8509)),
+		('clf', OneVsRestClassifier(LogisticRegression(penalty='l2', max_iter=1000, solver='lbfgs'), n_jobs=1)),
+	])
+
 	logRegPipeline_tfid = Pipeline([
-		('selector', ColumnSelector('text')),
-		('cleaner', textCleaner()),
 		('feats', features_tfid),
 		('clf', OneVsRestClassifier(LogisticRegression(penalty='l2', max_iter=1000, solver='lbfgs'), n_jobs=1)),
+	])
+
+	linSVCPipeline = Pipeline([
+		('feats', features),
+		('clf', OneVsRestClassifier(LinearSVC(max_iter=3000))),
+	])
+
+	linSVCPipeline_tfid = Pipeline([
+		('feats', features_tfid),
+		('clf', OneVsRestClassifier(LinearSVC(max_iter=3000))),
 	])
 
 	x_train = train
@@ -128,18 +184,27 @@ def main():
 
 	y_train = train.labels.apply(lambda x: getYVector(x,len(emotions))).to_list()
 	y_test = test.labels.apply(lambda x: getYVector(x,len(emotions))).to_list()
+	y_cv = cv.labels.apply(lambda x: getYVector(x,len(emotions))).to_list()
 
-	fit_hyperparameters(x_train, y_train, logRegPipeline)
-	trainModel(x_train, y_train, x_test, y_test, logRegPipeline, emotions)
+	pipeline = logRegPipeline_tsvd
+
+	#fit_hyperparameters(x_train, y_train, pipeline)
+	trainModel(x_train, y_train, x_test, y_test, pipeline, emotions)
+	print("Total Features:", len(pipeline.named_steps['clf'].coef_[0]))
+	return
 
 	#cross validation
 	all_models = [
     	("log", logRegPipeline),
     	("log_tfid", logRegPipeline_tfid),
+    	("lsvc", linSVCPipeline),
+    	("lsvc_tfid", linSVCPipeline_tfid),
     ]
  
 	scores = [(name, cross_val_score(model, x_train, y_train, cv=5, verbose=3).mean()) for name, model in all_models]
 	print(scores)
+
+	tsvd_options = [8509, 4254, 2127, 1063, 531]
 
 
 
