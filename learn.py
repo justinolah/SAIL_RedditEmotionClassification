@@ -73,12 +73,26 @@ def extractFeaturesBagOfWords(texts):
 	#print("Words ommited:",len(vectorizer.stop_words_))
 	return X
 
-def getYVector(labels, numEmotions):
-	indecies = [int(label) for label in labels.split(',') if int(label) < numEmotions] #removes neutral tag
-	y = [0] * numEmotions
-	for i in indecies:
+def getEmotionIndexMap(oldEmotions, emotionMap):
+	newEmotionMap = {}
+	for i, (key, value) in enumerate(emotionMap.items()):
+		for emotion in value:
+			newEmotionMap[oldEmotions.index(emotion)] = i	
+	return newEmotionMap
+
+def getYMatrix(labels, numEmotions):
+	indices = [int(label) for label in labels.split(',') if int(label) < numEmotions]
+	y = list([0] * numEmotions)
+	for i in indices:
 		y[i] = 1
-	return list(y)
+	return y
+
+def getYMatrixWithMap(labels, numEmotions, oldidx2newidx):
+	indices = [oldidx2newidx[int(label)] for label in labels.split(',') if int(label) in oldidx2newidx.keys()]
+	y = list([0] * numEmotions)
+	for i in indices:
+		y[i] = 1
+	return y
 
 def getLIWCFeatures(text):
 	words = text.split()
@@ -108,6 +122,7 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions):
 	print(classification_report(y_test, prediction, target_names=emotions, zero_division=0))
 	print("")
 	#print(conf)
+	print("Total Features:", len(pipeline.named_steps['clf'].coef_[0]))
 
 
 def fit_hyperparameters(x_train, y_train, pipeline):
@@ -117,6 +132,9 @@ def fit_hyperparameters(x_train, y_train, pipeline):
 	grid.fit(x_train, y_train)
 	print(grid.best_params_)
 	print(grid.best_score_)
+
+def svd(x_train, y_train, x_cv, y_cv):
+	pass
 
 def main():
 	emotions = getEmotions()
@@ -182,15 +200,31 @@ def main():
 	x_train = train
 	x_test = test
 
-	y_train = train.labels.apply(lambda x: getYVector(x,len(emotions))).to_list()
-	y_test = test.labels.apply(lambda x: getYVector(x,len(emotions))).to_list()
-	y_cv = cv.labels.apply(lambda x: getYVector(x,len(emotions))).to_list()
+	y_train = train.labels.apply(lambda x: getYMatrix(x,len(emotions))).to_list()
+	y_test = test.labels.apply(lambda x: getYMatrix(x,len(emotions))).to_list()
+	y_cv = cv.labels.apply(lambda x: getYMatrix(x,len(emotions))).to_list()
 
-	pipeline = logRegPipeline_tsvd
+	ekmanDict = getEkmanDict()
+	sentDict = getSentimentDict()
+	ekEmotions = ekmanDict.keys()
+	sentEmotions = sentDict.keys()
+	ek_idx_map = getEmotionIndexMap(emotions, ekmanDict)
+	sent_idx_map = getEmotionIndexMap(emotions, sentDict)
+
+	y_train_ek = train.labels.apply(lambda x: getYMatrixWithMap(x,len(ekEmotions),ek_idx_map)).to_list()
+	y_test_ek = test.labels.apply(lambda x: getYMatrixWithMap(x,len(ekEmotions), ek_idx_map)).to_list()
+	y_cv_ek = cv.labels.apply(lambda x: getYMatrixWithMap(x,len(ekEmotions), ek_idx_map)).to_list()
+
+	y_train_sent = train.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions),sent_idx_map)).to_list()
+	y_test_sent = test.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
+	y_cv_sent = cv.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
+
+	pipeline = logRegPipeline
 
 	#fit_hyperparameters(x_train, y_train, pipeline)
 	trainModel(x_train, y_train, x_test, y_test, pipeline, emotions)
-	print("Total Features:", len(pipeline.named_steps['clf'].coef_[0]))
+	trainModel(x_train, y_train_sent, x_test, y_test_sent, pipeline, sentEmotions)
+	trainModel(x_train, y_train_ek, x_test, y_test_ek, pipeline, ekEmotions)
 	return
 
 	#cross validation
