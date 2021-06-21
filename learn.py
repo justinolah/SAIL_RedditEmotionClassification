@@ -170,7 +170,7 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions, filename="m
 def fit_hyperparameters(x_train, y_train, x_val, y_val, pipeline):
 	pg = [
 		{
-			'clf__estimator__alpha':  [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+			'clf__estimator__alpha':  [0.1, 0.25, 0.5, 0.75, 1],
 			'clf__estimator__class_weight' : [None, 'balanced'],
 		},
 	]
