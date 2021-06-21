@@ -2,9 +2,10 @@ import sklearn
 import liwc
 from collections import Counter
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, RidgeClassifier
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, classification_report, precision_recall_curve
+from sklearn.ensemble import RandomForestClassifier, BaggingClassifier
 from sklearn.compose import ColumnTransformer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline, FeatureUnion
@@ -169,17 +170,9 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions, filename="m
 def fit_hyperparameters(x_train, y_train, x_val, y_val, pipeline):
 	pg = [
 		{
-			'clf__estimator__C': [.01, .1, 1.0, 10 ], 
-			'clf__estimator__class_weight': ['balanced', None], 
-			'clf__estimator__solver': ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'],
-			'clf__estimator__penalty' : ['l2'],
+			'clf__estimator__alpha':  [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+			'clf__estimator__class_weight' : [None, 'balanced'],
 		},
-		{
-			'clf__estimator__C': [.01, .1, 1.0, 10 ], 
-			'clf__estimator__class_weight': ['balanced', None], 
-			'clf__estimator__solver': ['saga'],
-			'clf__estimator__penalty' : ['l1', 'l2', 'elasticnet'],
-		}
 	]
 	scorers = ['accuracy', 'precision_micro', 'recall_micro', 'f1_micro', 'precision_macro', 'recall_macro', 'f1_macro']
 
@@ -199,7 +192,6 @@ def fit_hyperparameters(x_train, y_train, x_val, y_val, pipeline):
 	results = list(zip(*results))
 	scorers.insert(0,"params")
 	results = pd.DataFrame(data=results, columns=scorers)
-	print(results)
 	results.to_csv("tables/validation_results.csv")
 
 
@@ -242,27 +234,27 @@ def main():
 
 	logRegPipeline = Pipeline([
 		('feats', features),
-		('clf', OneVsRestClassifier(LogisticRegression(penalty='l2', max_iter=1000))),
+		('clf', OneVsRestClassifier(LogisticRegression(max_iter=1000, C=1, class_weight='balanced'))),
 	])
 
 	logRegPipeline_tfidf = Pipeline([
 		('feats', features_tfidf),
-		('clf', OneVsRestClassifier(LogisticRegression(penalty='l2', max_iter=1000, solver='lbfgs', C=10))),
+		('clf', OneVsRestClassifier(LogisticRegression(max_iter=1000, C=5, class_weight='balanced'))),
 	])
 
 	linSVCPipeline = Pipeline([
 		('feats', features),
-		('clf', OneVsRestClassifier(LinearSVC(dual=False, max_iter=3000, C=0.1))),
+		('clf', OneVsRestClassifier(LinearSVC(dual=False, max_iter=2500, C=1, penalty='l1', class_weight=None))),
 	])
 
 	linSVCPipeline_tfidf = Pipeline([
 		('feats', features_tfidf),
-		('clf', OneVsRestClassifier(LinearSVC(dual=False, max_iter=3000, C=1))),
+		('clf', OneVsRestClassifier(LinearSVC(dual=False, max_iter=2500, C=0.1, penalty='l2', class_weight='balanced'))),
 	])
 
-	MNBPipeline = Pipeline([
+	ridgePipeline = Pipeline([
 		('feats', features),
-		('clf', OneVsRestClassifier(MultinomialNB(alpha=1.0))),
+		('clf', OneVsRestClassifier(RidgeClassifier())),
 	])
 
 	x_train = train
@@ -288,20 +280,19 @@ def main():
 	y_test_sent = test.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 	y_val_sent = val.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 
-	pipeline = logRegPipeline
+	pipeline = ridgePipeline
 
 	#svd(x_train, y_train, x_val, y_val, features, emotions)
 	fit_hyperparameters(x_train, y_train, x_val, y_val, pipeline)
-
-	#trainModel(x_train, y_train, x_test, y_test, pipeline, emotions)
-
-	#analyzeThresholds(pipeline, x_cv, y_cv, emotions)
 	return
 
+	trainModel(x_train, y_train, x_test, y_test, pipeline, emotions)
+
+	#analyzeThresholds(pipeline, x_cv, y_cv, emotions)
 	print("Sentiment Grouping:")
-	trainModel(x_train, y_train_sent, x_test, y_test_sent, pipeline, sentEmotions)
+	trainModel(x_train, y_train_sent, x_test, y_test_sent, pipeline, sentEmotions, "sentiment")
 	print("Ekman Grouping:")
-	trainModel(x_train, y_train_ek, x_test, y_test_ek, pipeline, ekEmotions)
+	trainModel(x_train, y_train_ek, x_test, y_test_ek, pipeline, ekEmotions, "ekman")
 
 
 	return
