@@ -153,7 +153,7 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions, filename="m
 
 	prediction = pipeline.predict(x_test)
 	accuracy = accuracy_score(y_test, prediction)
-	print("Total Features:", len(pipeline.named_steps['clf'].coef_[0]))
+	#print("Total Features:", len(pipeline.named_steps['clf'].coef_[0]))
 	print("Subset Accuracy:", accuracy)
 	print(classification_report(y_test, prediction, target_names=emotions, zero_division=0, output_dict=False))
 	report = classification_report(y_test, prediction, target_names=emotions, zero_division=0, output_dict=True)
@@ -254,7 +254,17 @@ def main():
 
 	ridgePipeline = Pipeline([
 		('feats', features),
+		('clf', OneVsRestClassifier(RidgeClassifier(alpha=0.25, class_weight=None))),
+	])
+
+	ridgePipeline_tfidf = Pipeline([
+		('feats', features_tfidf),
 		('clf', OneVsRestClassifier(RidgeClassifier())),
+	])
+
+	rforestPipeline = Pipeline([
+		('feats', features),
+		('clf', OneVsRestClassifier(RandomForestClassifier())),
 	])
 
 	x_train = train
@@ -280,7 +290,7 @@ def main():
 	y_test_sent = test.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 	y_val_sent = val.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 
-	pipeline = ridgePipeline
+	pipeline = ridgePipeline_tfidf
 
 	#svd(x_train, y_train, x_val, y_val, features, emotions)
 	fit_hyperparameters(x_train, y_train, x_val, y_val, pipeline)
