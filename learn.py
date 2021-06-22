@@ -13,6 +13,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.decomposition import TruncatedSVD
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import GridSearchCV, cross_val_score
+import xgboost as xgb
 from helpers import *
 
 parse, category_names = liwc.load_token_parser('data/LIWC.dic')
@@ -200,13 +201,12 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions, filename="m
 	pipeline.fit(x_train, y_train)
 
 	prediction = pipeline.predict(x_test)
+	prediction_probabilities = pipeline.predict_proba(x_test)
 	accuracy = accuracy_score(y_test, prediction)
-	#print("Total Features:", len(pipeline.named_steps['clf'].coef_[0]))
+	print("Total Features:", len(pipeline.named_steps['clf'].coef_[0]))
 	print("Subset Accuracy:", accuracy)
 	print(classification_report(y_test, prediction, target_names=emotions, zero_division=0, output_dict=False))
 	report = classification_report(y_test, prediction, target_names=emotions, zero_division=0, output_dict=True)
-
-	confusionMatrix(y_test, prediction, emotions, filename)
 
 	#export resuls to csv
 	micro = list(report['micro avg'].values())
@@ -216,6 +216,9 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions, filename="m
 	scores = [accuracy, *micro, *macro]
 	results = pd.DataFrame(data=[scores], columns=['accuracy', 'micro_precision', 'micro_recall', 'micro_f1', 'macro_precision', 'macro_recall', 'macro_f1'])
 	results.to_csv("tables/" + filename + "_results.csv")
+
+	#confusion matrix
+	multilabel_confusion_matrix(np.array(y_test), np.array(prediction_probabilities), emotions, top_x=3, filename=filename)
 
 def fit_hyperparameters(x_train, y_train, x_val, y_val, pipeline):
 	pg = [
@@ -359,7 +362,6 @@ def main():
 	#fit_hyperparameters(x_train, y_train, x_val, y_val, pipeline)
 	
 	trainModel(x_train, y_train, x_test, y_test, pipeline, emotions)
-	return
 
 	#analyzeThresholds(pipeline, x_cv, y_cv, emotions)
 	print("Sentiment Grouping:")

@@ -5,6 +5,7 @@ import seaborn as sns
 import re 
 import os
 import json
+import itertools
 from os import path
 
 import nltk
@@ -105,6 +106,43 @@ def getSentimentDict():
 def getEkmanDict():
 	with open(EKMAN_DICT_FILE) as json_file:
 		return json.load(json_file)
+
+def get_topx_inference(pred_arr, top_x=1):
+	pred_at_topx = pred_arr.copy()
+	for n in range(pred_arr.shape[0]):
+		pred_n = pred_arr[n]
+		pred_at_topx[n][np.argsort(pred_n)[-top_x:].tolist()] = 1
+		pred_at_topx[pred_at_topx!=1] = 0
+	return pred_at_topx   
+
+def multilabel_confusion_matrix(gt, pred, emotions, top_x=1, filename="model"):
+	num_samples, num_labels = gt.shape
+	cm = np.zeros((num_labels, num_labels))
+	pred_at_top_x = get_topx_inference(pred, top_x)
+	for i in range(num_samples):
+		where_gt = np.where(gt[i])[0].tolist()
+		where_pred = np.where(pred_at_top_x[i])[0].tolist()
+		gt_v_pred = list(itertools.product(where_gt, where_pred))
+		for m,n in gt_v_pred: cm[m,n]+=1
+	cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+	fig, _ = plt.subplots(figsize=(11, 9))
+	palette = sns.diverging_palette(220, 20, n=256)
+	sns.heatmap(
+		cm, 
+		vmin=0,
+		vmax=.5, 
+		center=0,
+		xticklabels=emotions, 
+		yticklabels=emotions,
+		cmap=palette,
+		square=True
+	)
+	plt.xlabel('Predicted')
+	plt.ylabel('Actual')
+	fig.savefig("plots/" + filename + "_confusion_matrix.pdf", format="pdf")
+
+	return cm 
 
 def svdResultsGraph():
 	num_features = [8509, 4254, 2127, 1063, 531, 256, 132, 66]
