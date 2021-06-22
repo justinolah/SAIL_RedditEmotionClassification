@@ -12,8 +12,8 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.decomposition import TruncatedSVD
 from sklearn.svm import LinearSVC
-from sklearn.model_selection import GridSearchCV, cross_val_score
-import xgboost as xgb
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, cross_val_score
+#import xgboost as xgb
 from helpers import *
 
 parse, category_names = liwc.load_token_parser('data/LIWC.dic')
@@ -203,7 +203,7 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions, filename="m
 	prediction = pipeline.predict(x_test)
 	prediction_probabilities = pipeline.predict_proba(x_test)
 	accuracy = accuracy_score(y_test, prediction)
-	print("Total Features:", len(pipeline.named_steps['clf'].coef_[0]))
+	#print("Total Features:", len(pipeline.named_steps['clf'].coef_[0]))
 	print("Subset Accuracy:", accuracy)
 	print(classification_report(y_test, prediction, target_names=emotions, zero_division=0, output_dict=False))
 	report = classification_report(y_test, prediction, target_names=emotions, zero_division=0, output_dict=True)
@@ -220,11 +220,43 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions, filename="m
 	#confusion matrix
 	multilabel_confusion_matrix(np.array(y_test), np.array(prediction_probabilities), emotions, top_x=3, filename=filename)
 
-def fit_hyperparameters(x_train, y_train, x_val, y_val, pipeline):
+def randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
+	pg = {
+			#'clf__estimator__max_depth': [100, 500, 1000],
+			#'clf__estimator__min_samples_split': [2, 5, 10],
+			#'clf__estimator__min_samples_leaf': [2, 5, 10],
+			'clf__estimator__n_estimators':  [10, 50, 100],
+			#'clf__estimator__max_samples':  [.1, .2, .4],
+			'clf__estimator__max_features':  ['log2'],
+		}
+	scorers = ['accuracy', 'precision_micro', 'recall_micro', 'f1_micro', 'precision_macro', 'recall_macro', 'f1_macro']
+
+	split = [(list(range(len(x_train))), list(range(len(x_train), len(x_train) + len(x_val))))] 
+	
+	grid = RandomizedSearchCV(pipeline, param_distributions=pg, verbose=3, n_iter=10, refit='f1_macro', random_state=17, cv=split, scoring=scorers)
+	grid.fit(x_train.append(x_val), y_train + y_val)
+	print(grid.best_params_)
+	print(grid.best_score_)
+
+	#export results to csv
+	params = grid.cv_results_['params']
+	results = [params]
+	for scorer in scorers:
+		results.append(grid.cv_results_['mean_test_' + scorer])
+
+	scorers.append('mean_fit_time')
+	results.append(grid.cv_results_['mean_fit_time'])
+
+	results = list(zip(*results))
+	scorers.insert(0,"params")
+	results = pd.DataFrame(data=results, columns=scorers)
+	results.to_csv("tables/random_hyperparameter_results.csv")
+
+def fitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
 	pg = [
 		{
-			'clf__estimator__max_features':  ['sqrt', 'log2'],
-			'clf__estimator__n_estimators':  [10, 100],
+			'clf__estimator__max_features':  ['log2', 'sqrt'],
+			'clf__estimator__n_estimators':  [10, 100, 200],
 		},
 	]
 	scorers = ['accuracy', 'precision_micro', 'recall_micro', 'f1_micro', 'precision_macro', 'recall_macro', 'f1_macro']
@@ -242,10 +274,13 @@ def fit_hyperparameters(x_train, y_train, x_val, y_val, pipeline):
 	for scorer in scorers:
 		results.append(grid.cv_results_['mean_test_' + scorer])
 
+	scorers.append('mean_fit_time')
+	results.append(grid.cv_results_['mean_fit_time'])
+
 	results = list(zip(*results))
 	scorers.insert(0,"params")
 	results = pd.DataFrame(data=results, columns=scorers)
-	results.to_csv("tables/validation_results.csv")
+	results.to_csv("tables/hyperparameter_results.csv")
 
 
 def main():
@@ -356,10 +391,12 @@ def main():
 	y_test_sent = test.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 	y_val_sent = val.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 
-	pipeline = logRegPipeline
+	pipeline = rforestPipeline
 
 	#svd(x_train, y_train, x_val, y_val, features, emotions)
-	#fit_hyperparameters(x_train, y_train, x_val, y_val, pipeline)
+	fitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
+	#randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
+	return
 	
 	trainModel(x_train, y_train, x_test, y_test, pipeline, emotions)
 
