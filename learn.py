@@ -2,10 +2,10 @@ import sklearn
 import liwc
 from collections import Counter
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from sklearn.linear_model import LogisticRegression, RidgeClassifier
+from sklearn.linear_model import LogisticRegression, RidgeClassifier, Lasso
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, classification_report, precision_recall_curve
-from sklearn.ensemble import RandomForestClassifier, BaggingClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.compose import ColumnTransformer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline, FeatureUnion
@@ -42,6 +42,23 @@ class EmoticonsAndPunctuationExtractor(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         return self
 
+class EmpathExtractor(BaseEstimator, TransformerMixin):
+
+    def __init__(self, binary=False):
+        self.binary = binary
+
+    def transform(self, data, y=None):
+    	feats = []
+    	for row in data:
+    		row = row.replace("[","")
+    		row = row.replace("]","")
+    		row = [int(bool(float(item))) if True else float(item) for item in row.split(',')]
+    		feats.append(row)
+    	return feats
+
+    def fit(self, X, y=None):
+        return self
+
 class ColumnSelector(BaseEstimator, TransformerMixin):
     def __init__(self, column):
         self.column = column
@@ -65,6 +82,37 @@ class textCleaner(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         return self
+
+def confusionMatrix(y_true, y_pred, emotions, filename="model"):
+	conf = np.zeros((len(emotions), len(emotions)))
+	for i in range(len(y_true)):
+		y_ti = [idx for idx, num in enumerate(y_true[i]) if num == 1]
+		y_pi = [idx for idx, num in enumerate(y_pred[i]) if num == 1]
+		for i in y_ti:
+			for j in y_pi:
+				conf[i][j] += 1
+
+	#normalize rows
+	for i in range(len(conf)):
+		total = np.sum(conf[i])
+		for j in range(len(conf[i])):
+			conf[i][j] /= total
+
+	plt.figure(figsize=(14, 14))
+	palette = sns.diverging_palette(220, 20, n=256)
+	sns.heatmap(
+    	conf, 
+    	vmin=0,
+    	vmax=.5, 
+    	center=0,
+    	xticklabels=emotions, 
+    	yticklabels=emotions,
+    	cmap=palette,
+    	square=True
+	)
+	plt.xlabel('Predicted')
+	plt.ylabel('Actual')
+	plt.savefig("plots/" + filename + "_confusion_matrix.pdf", format="pdf")
 
 
 def extractFeaturesBagOfWords(texts):
@@ -158,6 +206,8 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions, filename="m
 	print(classification_report(y_test, prediction, target_names=emotions, zero_division=0, output_dict=False))
 	report = classification_report(y_test, prediction, target_names=emotions, zero_division=0, output_dict=True)
 
+	confusionMatrix(y_test, prediction, emotions, filename)
+
 	#export resuls to csv
 	micro = list(report['micro avg'].values())
 	micro.pop()
@@ -170,8 +220,8 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions, filename="m
 def fit_hyperparameters(x_train, y_train, x_val, y_val, pipeline):
 	pg = [
 		{
-			'clf__estimator__alpha':  [0.1, 0.25, 0.5, 0.75, 1],
-			'clf__estimator__class_weight' : [None, 'balanced'],
+			'clf__estimator__max_features':  ['sqrt', 'log2'],
+			'clf__estimator__n_estimators':  [10, 100],
 		},
 	]
 	scorers = ['accuracy', 'precision_micro', 'recall_micro', 'f1_micro', 'precision_macro', 'recall_macro', 'f1_macro']
@@ -208,6 +258,11 @@ def main():
 	cleanText(test)
 	cleanText(val)
 
+	#get saved empath features
+	getTrainEmpath(train)
+	getTestEmpath(test)
+	getValEmpath(val)
+
 	print("Training set length:", len(train))
 	print("Testing set length:", len(test))
 	print("Cross validation set length:", len(val))
@@ -219,9 +274,11 @@ def main():
 	tfidfPipe = Pipeline([('selector', ColumnSelector(column='text')), ('tfidf', TfidfVectorizer(min_df=3, ngram_range=(1,2)))])
 	emotesPipe = Pipeline([('selector', ColumnSelector(column='raw_text')), ('emot', EmoticonsAndPunctuationExtractor())])
 	emotesPipeBinary = Pipeline([('selector', ColumnSelector(column='raw_text')), ('emot', EmoticonsAndPunctuationExtractor(binary=True))])
+	empathPipe = Pipeline([('selector', ColumnSelector(column='empath')), ('emp', EmpathExtractor(binary=False))])
+	empathPipeBinary = Pipeline([('selector', ColumnSelector(column='empath')), ('emp', EmpathExtractor(binary=True))])
 
 	features = FeatureUnion([
-		('lex', liwcPipeBinary),
+		('lex', liwcPipe),
 		('counts', cvecPipe),
 		('emotes', emotesPipeBinary),
     ])
@@ -259,7 +316,13 @@ def main():
 
 	ridgePipeline_tfidf = Pipeline([
 		('feats', features_tfidf),
-		('clf', OneVsRestClassifier(RidgeClassifier())),
+		('clf', OneVsRestClassifier(RidgeClassifier(alpha=0.1, class_weight=None))),
+	])
+
+	#does not work
+	lassoPipeline = Pipeline([
+		('feats', features),
+		('clf', OneVsRestClassifier(Lasso())),
 	])
 
 	rforestPipeline = Pipeline([
@@ -290,20 +353,19 @@ def main():
 	y_test_sent = test.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 	y_val_sent = val.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 
-	pipeline = ridgePipeline_tfidf
+	pipeline = logRegPipeline
 
 	#svd(x_train, y_train, x_val, y_val, features, emotions)
-	fit_hyperparameters(x_train, y_train, x_val, y_val, pipeline)
-	return
-
+	#fit_hyperparameters(x_train, y_train, x_val, y_val, pipeline)
+	
 	trainModel(x_train, y_train, x_test, y_test, pipeline, emotions)
+	return
 
 	#analyzeThresholds(pipeline, x_cv, y_cv, emotions)
 	print("Sentiment Grouping:")
 	trainModel(x_train, y_train_sent, x_test, y_test_sent, pipeline, sentEmotions, "sentiment")
 	print("Ekman Grouping:")
 	trainModel(x_train, y_train_ek, x_test, y_test_ek, pipeline, ekEmotions, "ekman")
-
 
 	return
 

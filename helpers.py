@@ -17,6 +17,9 @@ EMOTION_FILE = "data/emotions.txt"
 TRAIN_SET_FILE = "data/train.csv"
 TEST_SET_FILE = "data/test.csv"
 VAL_SET_FILE = "data/dev.csv"
+TRAIN_EMPATH_FILE = "data/train_empath_features.csv"
+TEST_EMPATH_FILE = "data/test_empath_features.csv"
+VAL_EMPATH_FILE = "data/dev_empath_features.csv"
 STOP_WORDS_FILE = "data/stopwords.txt"
 EMOTICONS_FILE = "data/emoticons.txt"
 LEXICON = "data/NRC-Emotion-Lexicon.csv"
@@ -79,6 +82,21 @@ def getTestSet():
 
 def getValSet():
 	return pd.read_csv(VAL_SET_FILE)
+
+def getTrainEmpath(data):
+	empath = pd.read_csv(TRAIN_EMPATH_FILE).empath
+	data["empath"] = empath
+	return data
+
+def getTestEmpath(data):
+	empath = pd.read_csv(TEST_EMPATH_FILE).empath
+	data["empath"] = empath
+	return data
+
+def getValEmpath(data):
+	empath = pd.read_csv(VAL_EMPATH_FILE).empath
+	data["empath"] = empath
+	return data
 
 def getSentimentDict():
 	with open(SENTIMENT_DICT_FILE) as json_file:
