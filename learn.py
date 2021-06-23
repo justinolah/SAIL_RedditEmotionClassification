@@ -178,7 +178,7 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions, filename="m
 
 def randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
 	pg = {
-			#'clf__estimator__max_depth': [100, 500, 1000],
+			#'clf__estimator__max_depth': [500],
 			#'clf__estimator__min_samples_split': [2, 5, 10],
 			#'clf__estimator__min_samples_leaf': [2, 5, 10],
 			'clf__estimator__n_estimators':  [100],
@@ -211,10 +211,12 @@ def randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
 def fitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
 	pg = [
 		{
-			'clf__estimator__max_depth': [100, 500, 1000, None],
+			'clf__estimator__max_depth': [500],
 			'clf__estimator__max_features':  ['sqrt'],
 			'clf__estimator__n_estimators':  [100],
 			'clf__estimator__max_samples':  [.75,],
+			'clf__estimator__min_samples_split': [1, 2, 5],
+			'clf__estimator__min_samples_leaf': [1, 2, 5],
 		},
 	]
 	scorers = ['accuracy', 'precision_micro', 'recall_micro', 'f1_micro', 'precision_macro', 'recall_macro', 'f1_macro']
