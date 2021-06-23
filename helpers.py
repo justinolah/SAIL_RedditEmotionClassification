@@ -107,6 +107,13 @@ def getEkmanDict():
 	with open(EKMAN_DICT_FILE) as json_file:
 		return json.load(json_file)
 
+def getEmotionIndexMap(oldEmotions, emotionMap):
+	newEmotionMap = {}
+	for i, (key, value) in enumerate(emotionMap.items()):
+		for emotion in value:
+			newEmotionMap[oldEmotions.index(emotion)] = i	
+	return newEmotionMap
+
 def get_topx_inference(pred_arr, top_x=1):
 	pred_at_topx = pred_arr.copy()
 	for n in range(pred_arr.shape[0]):

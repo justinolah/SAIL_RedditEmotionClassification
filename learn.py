@@ -13,10 +13,14 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.decomposition import TruncatedSVD
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, cross_val_score
+import xgboost as xgb
+from xgboost import XGBClassifier
 from helpers import *
 
 parse, category_names = liwc.load_token_parser('data/LIWC.dic')
 emoticons = getEmoticons()
+
+xgb.set_config(verbosity=2)
 
 #Feature extractor for LIWC Lexicon
 class LIWCFeatureExtractor(BaseEstimator, TransformerMixin):
@@ -82,53 +86,6 @@ class textCleaner(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         return self
-
-def confusionMatrix(y_true, y_pred, emotions, filename="model"):
-	conf = np.zeros((len(emotions), len(emotions)))
-	for i in range(len(y_true)):
-		y_ti = [idx for idx, num in enumerate(y_true[i]) if num == 1]
-		y_pi = [idx for idx, num in enumerate(y_pred[i]) if num == 1]
-		for i in y_ti:
-			for j in y_pi:
-				conf[i][j] += 1
-
-	#normalize rows
-	for i in range(len(conf)):
-		total = np.sum(conf[i])
-		for j in range(len(conf[i])):
-			conf[i][j] /= total
-
-	plt.figure(figsize=(14, 14))
-	palette = sns.diverging_palette(220, 20, n=256)
-	sns.heatmap(
-    	conf, 
-    	vmin=0,
-    	vmax=.5, 
-    	center=0,
-    	xticklabels=emotions, 
-    	yticklabels=emotions,
-    	cmap=palette,
-    	square=True
-	)
-	plt.xlabel('Predicted')
-	plt.ylabel('Actual')
-	plt.savefig("plots/" + filename + "_confusion_matrix.pdf", format="pdf")
-
-
-def extractFeaturesBagOfWords(texts):
-	vectorizer = CountVectorizer(min_df=3, ngram_range=(1,2))
-	X = vectorizer.fit_transform(texts).toarray()
-	#print(vectorizer.vocabulary_)
-	#print("Vocabualry length:", len(vectorizer.vocabulary_))
-	#print("Words ommited:",len(vectorizer.stop_words_))
-	return X
-
-def getEmotionIndexMap(oldEmotions, emotionMap):
-	newEmotionMap = {}
-	for i, (key, value) in enumerate(emotionMap.items()):
-		for emotion in value:
-			newEmotionMap[oldEmotions.index(emotion)] = i	
-	return newEmotionMap
 
 def getYMatrix(labels, numEmotions):
 	indices = [int(label) for label in labels.split(',') if int(label) < numEmotions]
@@ -254,10 +211,10 @@ def randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
 def fitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
 	pg = [
 		{
+			'clf__estimator__max_depth': [100, 500, 1000, None],
 			'clf__estimator__max_features':  ['sqrt'],
 			'clf__estimator__n_estimators':  [100],
-			'clf__estimator__max_samples':  [.1, .25, .4, .75, None],
-			#'clf__estimator__class_weight':  ['balanced', None],
+			'clf__estimator__max_samples':  [.75,],
 		},
 	]
 	scorers = ['accuracy', 'precision_micro', 'recall_micro', 'f1_micro', 'precision_macro', 'recall_macro', 'f1_macro']
@@ -366,7 +323,12 @@ def main():
 
 	rforestPipeline = Pipeline([
 		('feats', features),
-		('clf', OneVsRestClassifier(RandomForestClassifier(random_state=20))),
+		('clf', OneVsRestClassifier(RandomForestClassifier(random_state=42, class_weight=None))),
+	])
+
+	xgboostPipeline = Pipeline([
+		('feats', features),
+		('clf', OneVsRestClassifier(XGBClassifier())),
 	])
 
 	x_train = train
@@ -399,6 +361,7 @@ def main():
 	#randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
 	return
 	trainModel(x_train, y_train, x_test, y_test, pipeline, emotions)
+	return
 
 	#analyzeThresholds(pipeline, x_cv, y_cv, emotions)
 	print("Sentiment Grouping:")
