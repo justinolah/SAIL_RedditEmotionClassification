@@ -256,8 +256,8 @@ def fitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
 		{
 			'clf__estimator__max_features':  ['sqrt'],
 			'clf__estimator__n_estimators':  [100],
-			'clf__estimator__max_samples':  [.1, .2, .4, None],
-			'clf__estimator__class_weight':  ['balanced', None],
+			'clf__estimator__max_samples':  [.1, .25, .4, .75, None],
+			#'clf__estimator__class_weight':  ['balanced', None],
 		},
 	]
 	scorers = ['accuracy', 'precision_micro', 'recall_micro', 'f1_micro', 'precision_macro', 'recall_macro', 'f1_macro']
@@ -366,7 +366,7 @@ def main():
 
 	rforestPipeline = Pipeline([
 		('feats', features),
-		('clf', OneVsRestClassifier(RandomForestClassifier())),
+		('clf', OneVsRestClassifier(RandomForestClassifier(random_state=20))),
 	])
 
 	x_train = train
