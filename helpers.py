@@ -30,7 +30,7 @@ MIN_WORD_LENGTH = 3
 
 lemmatizer = WordNetLemmatizer()
 
-def processText(text, stopwords):
+def processText(text, stopwords, lemmatize=True):
 	text = text.lower()
 	text = re.sub(r"[^a-z\s]+", " ", text)
 	text = re.sub(r"\s+", " ", text)
@@ -38,10 +38,10 @@ def processText(text, stopwords):
 	words = text.split()
 	return " ".join([lemmatizer.lemmatize(word) for word in words if len(word) >= MIN_WORD_LENGTH and word not in stopwords])
 
-def cleanText(data):
+def cleanText(data, lemmatize=True):
 	stopwords = getStopWords()
 	data["raw_text"] = data.text.copy()
-	data.text = data.text.apply(lambda x: processText(x,stopwords))
+	data.text = data.text.apply(lambda x: processText(x,stopwords,lemmatize))
 	data = data[data.text.str.len() > 0]
 
 def CheckAgreement(ex, min_agreement, all_emotions, max_agreement=100):

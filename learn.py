@@ -12,15 +12,15 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.decomposition import TruncatedSVD
 from sklearn.svm import LinearSVC
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, cross_val_score
 import xgboost as xgb
 from xgboost import XGBClassifier
 from helpers import *
+from fasttext_model import *
 
 parse, category_names = liwc.load_token_parser('data/LIWC.dic')
 emoticons = getEmoticons()
-
-xgb.set_config(verbosity=2)
 
 #Feature extractor for LIWC Lexicon
 class LIWCFeatureExtractor(BaseEstimator, TransformerMixin):
@@ -72,6 +72,19 @@ class ColumnSelector(BaseEstimator, TransformerMixin):
     
     def transform(self, X):
         return X[self.column]
+
+class FasttextTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self, maxSentenceLength=33):
+        ft, wordVecLength = getFasttextModel()
+        self.ft = ft
+        self.wordVecLength = wordVecLength
+        self.maxSentenceLength = maxSentenceLength
+        
+    def fit(self, X, y=None):
+        return self
+    
+    def transform(self, text):
+        return text.apply(cleanTextForEmbedding).apply(lambda x: getSentenceVectorPadded(x, self.ft, self.maxSentenceLength, self.wordVecLength)).to_list()
 
 class textCleaner(BaseEstimator, TransformerMixin):
 
@@ -159,7 +172,7 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions, filename="m
 	prediction = pipeline.predict(x_test)
 	prediction_probabilities = pipeline.predict_proba(x_test)
 	accuracy = accuracy_score(y_test, prediction)
-	#print("Total Features:", len(pipeline.named_steps['clf'].coef_[0]))
+	print("Total Features:", len(pipeline.named_steps['clf'].coef_[0]))
 	print("Subset Accuracy:", accuracy)
 	print(classification_report(y_test, prediction, target_names=emotions, zero_division=0, output_dict=False))
 	report = classification_report(y_test, prediction, target_names=emotions, zero_division=0, output_dict=True)
@@ -274,6 +287,8 @@ def main():
 	emotesPipeBinary = Pipeline([('selector', ColumnSelector(column='raw_text')), ('emot', EmoticonsAndPunctuationExtractor(binary=True))])
 	empathPipe = Pipeline([('selector', ColumnSelector(column='empath')), ('emp', EmpathExtractor(binary=False))])
 	empathPipeBinary = Pipeline([('selector', ColumnSelector(column='empath')), ('emp', EmpathExtractor(binary=True))])
+	fasttextFeatures = Pipeline([('selector', ColumnSelector(column='raw_text')), ('ft', FasttextTransformer(maxSentenceLength=33))])
+
 
 	features = FeatureUnion([
 		('lex', liwcPipe),
@@ -288,7 +303,7 @@ def main():
     ])
 
 	logRegPipeline = Pipeline([
-		('feats', features),
+		('feats', fasttextFeatures),
 		('clf', OneVsRestClassifier(LogisticRegression(max_iter=1000, C=1, class_weight='balanced'))),
 	])
 
@@ -323,6 +338,11 @@ def main():
 		('clf', OneVsRestClassifier(Lasso())),
 	])
 
+	dTreePipeline = Pipeline([
+		('feats', features),
+		('clf', OneVsRestClassifier(DecisionTreeClassifier(random_state=0))),
+	])
+
 	rforestPipeline = Pipeline([
 		('feats', features),
 		('clf', OneVsRestClassifier(RandomForestClassifier(random_state=42, class_weight=None, n_estimators=100, max_depth=500, max_features='sqrt', max_samples=0.75))),
@@ -330,7 +350,7 @@ def main():
 
 	xgboostPipeline = Pipeline([
 		('feats', features),
-		('clf', OneVsRestClassifier(XGBClassifier())),
+		('clf', OneVsRestClassifier(XGBClassifier(objective='binary:logistic', n_estimators=100, random_state=42, use_label_encoder=False, verbosity=1, n_jobs=1))),
 	])
 
 	x_train = train
@@ -356,14 +376,14 @@ def main():
 	y_test_sent = test.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 	y_val_sent = val.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 
-	pipeline = rforestPipeline
+	pipeline = logRegPipeline
 
 	#svd(x_train, y_train, x_val, y_val, features, emotions)
-	fitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
+	#fitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
 	#randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
-	return
 
 	trainModel(x_train, y_train, x_test, y_test, pipeline, emotions)
+	return
 	#analyzeThresholds(pipeline, x_cv, y_cv, emotions)
 	print("Sentiment Grouping:")
 	trainModel(x_train, y_train_sent, x_test, y_test_sent, pipeline, sentEmotions, "sentiment")
