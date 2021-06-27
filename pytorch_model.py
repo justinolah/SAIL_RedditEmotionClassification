@@ -7,105 +7,136 @@ from helpers import *
 from fasttext_model import *
 from learn import *
 
-class Feedforward(torch.nn.Module):
-	def __init__(self, input_size, hidden_size):
-		super(Feedforward, self).__init__()
-		self.input_size = input_size
-		self.hidden_size  = hidden_size
-		self.fc1 = torch.nn.Linear(self.input_size, self.hidden_size)
-		self.relu = torch.nn.ReLU()
-		self.fc2 = torch.nn.Linear(self.hidden_size, 1)
-		self.sigmoid = torch.nn.Sigmoid()
-	def forward(self, x):
-		hidden = self.fc1(x)
-		relu = self.relu(hidden)
-		output = self.fc2(relu)
-		output = self.sigmoid(output)
-		return output
-
 class MultilayerPerceptron(nn.Module):
 	def __init__(self, input_dim, hidden_dim, output_dim):
 		super(MultilayerPerceptron, self).__init__()
-		self.fc1 = nn.Linear(input_dim, hidden_dim)
-		self.fc2 = nn.Linear(hidden_dim, output_dim)
-		self.sigmoid = torch.nn.Sigmoid()
-		self.relu = torch.nn.ReLU()
+		self.layers = nn.Sequential(
+			nn.Linear(input_dim, hidden_dim),
+			torch.nn.ReLU(),
+			nn.Linear(hidden_dim, output_dim),
+			torch.nn.Sigmoid(),
+		)
 
 	def forward(self, x_in):
-		hiden = self.fc1(x_in)
-		intermediate = self.relu(hiden)
-		output = self.fc2(intermediate)
-		output = self.sigmoid(output)
-		return output
+		 return self.layers(x_in)
 
 class GoEmotionsDatasetFasttext(Dataset):
-    def __init__(self, data, emotions, maxSentenceLength=33):
-        self.emotions = emotions
-        self.maxSentenceLength = maxSentenceLength
-        ft, wordVecLength = getFasttextModel()
-        self.ft = ft
-        self.wordVecLength = wordVecLength
-        self.data = torch.Tensor(data.text.apply(cleanTextForEmbedding).apply(lambda x: getSentenceVectorPadded(x, ft, maxSentenceLength, wordVecLength)))
-        self.labels = torch.Tensor(data.labels.apply(lambda x: getYMatrix(x,len(emotions))))
+	def __init__(self, data, emotions, ft=None, wordVecLength=300, maxSentenceLength=33):
+		if ft is None:
+			ft, wordVecLength = getFasttextModel()
+		self.emotions = emotions
+		self.maxSentenceLength = maxSentenceLength
+		self.ft = ft
+		self.wordVecLength = wordVecLength
+		self.data = torch.Tensor(data.text.apply(cleanTextForEmbedding).apply(lambda x: getSentenceVectorPadded(x, ft, maxSentenceLength, wordVecLength)))
+		self.labels = torch.Tensor(data.labels.apply(lambda x: getYMatrix(x,len(emotions))))
 
-    def __len__(self):
-        return len(self.data)
+	def __len__(self):
+		return len(self.data)
 
-    def __getitem__(self, idx):
-        return self.data[idx], self.labels[idx]
+	def __getitem__(self, idx):
+		return self.data[idx], self.labels[idx]
+
+def trainNN(model, trainloader, optimizer, loss_fn):
+	counter = 0
+	train_running_loss = 0.0
+
+	for i, batch in enumerate(trainloader):
+		counter += 1
+		inputs, labels = batch
+		optimizer.zero_grad()
+		outputs = model(inputs)
+
+		#print("inputs:", inputs)
+		#print("labels:", labels)
+		#print("outputs:", outputs)
+
+		loss = loss_fn(outputs, labels)
+		loss.backward()
+		optimizer.step()
+
+		train_running_loss += loss.item()
+
+	return train_running_loss / counter
 
 def main():
 	emotions = getEmotions()
+	emotions.remove("neutral")
+
 	ft, wordVecLength = getFasttextModel()
 
 	#parameters
 	maxSentenceLength = 33
-	epochs = 2
+	epochs = 5
 	input_dim = maxSentenceLength * wordVecLength
-	hidden_dim = 50
+	hidden_dim = 5000
 	output_dim = len(emotions)
 	lr = 1e-4
+
 
 	#get data
 	train = getTrainSet()
 	test = getTestSet()
 
-	#
-	dataset = GoEmotionsDatasetFasttext(train, emotions, maxSentenceLength=33)
-
-	#x_train = torch.Tensor(train.text.apply(cleanTextForEmbedding).apply(lambda x: getSentenceVectorPadded(x, ft, maxSentenceLength, wordVecLength)))
-	#x_test = torch.Tensor(test.text.apply(cleanTextForEmbedding).apply(lambda x: getSentenceVectorPadded(x, ft, maxSentenceLength, wordVecLength)))
-
-	#y_train = torch.Tensor(train.labels.apply(lambda x: getYMatrix(x,len(emotions))))
-	#y_test = torch.Tensor(test.labels.apply(lambda x: getYMatrix(x,len(emotions))))
+	print("Creating dataset...")
+	dataset = GoEmotionsDatasetFasttext(train, emotions, ft=ft, wordVecLength=wordVecLength, maxSentenceLength=33)
+	testset = GoEmotionsDatasetFasttext(test, emotions, ft=ft, wordVecLength=wordVecLength, maxSentenceLength=33)
+	print("Done\n")
 
 	#pytorch model
+	print("Training NN...")
 	torch.manual_seed(42)
 	mlp = MultilayerPerceptron(input_dim, hidden_dim, output_dim)
 
 	optimizer = torch.optim.Adam(mlp.parameters(), lr=lr)
-	loss_function = nn.CrossEntropyLoss()
+	loss_fn= nn.BCEWithLogitsLoss() #nn.CrossEntropyLoss() #todo weights
 
 	trainloader = torch.utils.data.DataLoader(dataset, batch_size=10, shuffle=True, num_workers=1)
 
+	#train model
+	mlp.train()
+	train_loss = []
 	for epoch in range(epochs):
 		print("Epoch:", epoch)
-		current_loss = 0.0
+		epoch_loss = trainNN(mlp, trainloader, optimizer, loss_fn)
+		train_loss.append(epoch_loss)
+		print("Loss:", epoch_loss, "\n")
 
-		for i, data in enumerate(trainloader):
-			inputs, labels = data
-			optimizer.zero_grad()
-			outputs = mlp(inputs)
+	print("Training complete\n")
 
-			loss = loss_function(outputs, labels)
-			loss.backward()
-			optimizer.step()
+	#learning curve 
+	plt.figure(figsize=(10, 7))
+	plt.plot(train_loss, color='b', label='Training loss')
+	plt.xlabel('Epochs')
+	plt.ylabel('Loss')
+	plt.legend()
+	plt.savefig('plots/learningcurve.png')
 
-			current_loss += loss.item()
+	#Testing metrics
+	mlp.eval()
+	data, labels = testset[:]
 
-			if i % len(trainloader) == len(trainloader) - 1:
-				print("Loss:", current_loss)
-				current_loss = 0.0
+	outputs = mlp(data)
+	prediction = (outputs > 0.5).int()
+	print(prediction)
+
+	accuracy = accuracy_score(labels, prediction)
+	print("Subset Accuracy:", accuracy)
+	print(classification_report(labels, prediction, target_names=emotions, zero_division=0, output_dict=False))
+	report = classification_report(labels, prediction, target_names=emotions, zero_division=0, output_dict=True)
+
+	#export resuls to csv
+	micro = list(report['micro avg'].values())
+	micro.pop() 
+	macro = list(report['macro avg'].values())
+	macro.pop()
+	scores = [accuracy, *micro, *macro]
+	results = pd.DataFrame(data=[scores], columns=['accuracy', 'micro_precision', 'micro_recall', 'micro_f1', 'macro_precision', 'macro_recall', 'macro_f1'])
+	results.to_csv("tables/model_results.csv")
+
+	#confusion matrix
+	multilabel_confusion_matrix(np.array(labels), np.array(outputs), emotions, top_x=3, filename=filename)
+
 
 
 

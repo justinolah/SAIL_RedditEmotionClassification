@@ -9,7 +9,7 @@ def getFasttextModel():
     print("Loading pretrained fasttext model...")
     ft = fasttext.load_model('cc.en.300.bin')
     wordVecLength = 300
-    print("Model loaded\n")
+    print("Loaded\n")
     return ft, wordVecLength
 
 def cleanTextForEmbedding(text):
@@ -86,8 +86,7 @@ def main():
 
     x_train = train.text.apply(lambda x: getSentenceVectorPadded(x, ft, MAX_SENTENCE_LENGTH, wordVecLength))
     x_test = test.text.apply(lambda x: getSentenceVectorPadded(x, ft, MAX_SENTENCE_LENGTH, wordVecLength))
-    print(x_train)
-    print(len(x_train[0]))
+
     return
 
     #todo add labels to text
