@@ -117,7 +117,7 @@ def getGloveMap():
 			coefs = np.fromstring(coefs, "f", sep=" ")
 			gloveMap[word] = coefs
 	print("Loaded.\n")
-	return gloveMap
+	return gloveMap, 100
 
 def getEmotionIndexMap(oldEmotions, emotionMap):
 	newEmotionMap = {}

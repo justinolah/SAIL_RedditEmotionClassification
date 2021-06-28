@@ -88,8 +88,8 @@ class FasttextTransformer(BaseEstimator, TransformerMixin):
 
 class GloveTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, maxSentenceLength=33):
-        ft, wordVecLength = getFasttextModel()
-        self.ft = ft
+        gloveMap, wordVecLength = getGloveMap()
+        self.gloveMap = gloveMap
         self.wordVecLength = wordVecLength
         self.maxSentenceLength = maxSentenceLength
         
@@ -97,7 +97,7 @@ class GloveTransformer(BaseEstimator, TransformerMixin):
         return self
     
     def transform(self, text):
-        return text.apply(cleanTextForEmbedding).apply(lambda x: getSentenceVectorPadded(x, self.ft, self.maxSentenceLength, self.wordVecLength)).to_list()
+        return text.apply(cleanTextForEmbedding).apply(lambda x: getGloveVector(x, self.gloveMap, self.maxSentenceLength, self.wordVecLength)).to_list()
 
 class textCleaner(BaseEstimator, TransformerMixin):
 
@@ -299,6 +299,7 @@ def main():
 	empathPipe = Pipeline([('selector', ColumnSelector(column='empath')), ('emp', EmpathExtractor(binary=False))])
 	empathPipeBinary = Pipeline([('selector', ColumnSelector(column='empath')), ('emp', EmpathExtractor(binary=True))])
 	#fasttextFeatures = Pipeline([('selector', ColumnSelector(column='raw_text')), ('ft', FasttextTransformer(maxSentenceLength=33))])
+	gloveFeatures = Pipeline([('selector', ColumnSelector(column='raw_text')), ('gl', GloveTransformer(maxSentenceLength=33))])
 
 
 	features = FeatureUnion([
@@ -387,12 +388,11 @@ def main():
 	y_test_sent = test.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 	y_val_sent = val.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 
-	pipeline = xgboostPipeline
+	pipeline = logRegPipeline
 
 	#svd(x_train, y_train, x_val, y_val, features, emotions)
-	fitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
+	#fitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
 	#randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
-	return
 
 	trainModel(x_train, y_train, x_test, y_test, pipeline, emotions)
 	return
