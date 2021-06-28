@@ -26,6 +26,7 @@ EMOTICONS_FILE = "data/emoticons.txt"
 LEXICON = "data/NRC-Emotion-Lexicon.csv"
 SENTIMENT_DICT_FILE = "data/sentiment_map.json"
 EKMAN_DICT_FILE = "data/ekman_map.json"
+GLOVE_FILE="glove/glove.twitter.27B.100d.txt"
 MIN_WORD_LENGTH = 3
 
 lemmatizer = WordNetLemmatizer()
@@ -107,6 +108,17 @@ def getEkmanDict():
 	with open(EKMAN_DICT_FILE) as json_file:
 		return json.load(json_file)
 
+def getGloveMap():
+	print("Getting pretrained glove embedding model...")
+	gloveMap= {}
+	with open(GLOVE_FILE) as f:
+		for line in f:
+			word, coefs = line.split(maxsplit=1)
+			coefs = np.fromstring(coefs, "f", sep=" ")
+			gloveMap[word] = coefs
+	print("Loaded.\n")
+	return gloveMap
+
 def getEmotionIndexMap(oldEmotions, emotionMap):
 	newEmotionMap = {}
 	for i, (key, value) in enumerate(emotionMap.items()):
@@ -171,6 +183,6 @@ def svdResultsGraph():
 	plt.plot(range(1,9), macro_rec, "y--", label="Macro rec")
 	plt.plot(range(1,9), macro_f1, "r--", label="Macro f1")
 	plt.ylabel("Score")
-	plt.xlabel(".5^n features")
+	plt.xlabel("Halving  of dataset")
 	plt.legend(loc='best')
 	plt.savefig("plots/svd_results.pdf", format="pdf")

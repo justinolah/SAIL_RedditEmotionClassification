@@ -86,6 +86,19 @@ class FasttextTransformer(BaseEstimator, TransformerMixin):
     def transform(self, text):
         return text.apply(cleanTextForEmbedding).apply(lambda x: getSentenceVectorPadded(x, self.ft, self.maxSentenceLength, self.wordVecLength)).to_list()
 
+class GloveTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self, maxSentenceLength=33):
+        ft, wordVecLength = getFasttextModel()
+        self.ft = ft
+        self.wordVecLength = wordVecLength
+        self.maxSentenceLength = maxSentenceLength
+        
+    def fit(self, X, y=None):
+        return self
+    
+    def transform(self, text):
+        return text.apply(cleanTextForEmbedding).apply(lambda x: getSentenceVectorPadded(x, self.ft, self.maxSentenceLength, self.wordVecLength)).to_list()
+
 class textCleaner(BaseEstimator, TransformerMixin):
 
     def __init__(self):
@@ -224,12 +237,10 @@ def randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
 def fitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
 	pg = [
 		{
-			'clf__estimator__max_depth': [500],
-			'clf__estimator__max_features':  ['sqrt', .125, .25, .5],
-			'clf__estimator__n_estimators':  [100],
-			'clf__estimator__max_samples':  [.75,],
-			'clf__estimator__min_samples_split': [2],
-			'clf__estimator__min_samples_leaf': [1],
+			#'clf__estimator__lambda': [.01, .1, 1, 10],
+			'clf__estimator__n_estimators': [100, 300, 500],
+			'clf__estimator__max_depth': [6, 8, 10],
+			#'clf__estimator__learning_rate': [.1],
 		},
 	]
 	scorers = ['accuracy', 'precision_micro', 'recall_micro', 'f1_micro', 'precision_macro', 'recall_macro', 'f1_macro']
@@ -287,7 +298,7 @@ def main():
 	emotesPipeBinary = Pipeline([('selector', ColumnSelector(column='raw_text')), ('emot', EmoticonsAndPunctuationExtractor(binary=True))])
 	empathPipe = Pipeline([('selector', ColumnSelector(column='empath')), ('emp', EmpathExtractor(binary=False))])
 	empathPipeBinary = Pipeline([('selector', ColumnSelector(column='empath')), ('emp', EmpathExtractor(binary=True))])
-	fasttextFeatures = Pipeline([('selector', ColumnSelector(column='raw_text')), ('ft', FasttextTransformer(maxSentenceLength=33))])
+	#fasttextFeatures = Pipeline([('selector', ColumnSelector(column='raw_text')), ('ft', FasttextTransformer(maxSentenceLength=33))])
 
 
 	features = FeatureUnion([
@@ -303,7 +314,7 @@ def main():
     ])
 
 	logRegPipeline = Pipeline([
-		('feats', fasttextFeatures),
+		('feats', features),
 		('clf', OneVsRestClassifier(LogisticRegression(max_iter=1000, C=1, class_weight='balanced'))),
 	])
 
@@ -350,7 +361,7 @@ def main():
 
 	xgboostPipeline = Pipeline([
 		('feats', features),
-		('clf', OneVsRestClassifier(XGBClassifier(objective='binary:logistic', n_estimators=100, random_state=42, use_label_encoder=False, verbosity=1, n_jobs=1))),
+		('clf', OneVsRestClassifier(XGBClassifier(objective='binary:logistic', eval_metric="logloss", n_estimators=100, random_state=42, use_label_encoder=False, verbosity=1, n_jobs=1))),
 	])
 
 	x_train = train
@@ -376,11 +387,12 @@ def main():
 	y_test_sent = test.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 	y_val_sent = val.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 
-	pipeline = logRegPipeline
+	pipeline = xgboostPipeline
 
 	#svd(x_train, y_train, x_val, y_val, features, emotions)
-	#fitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
+	fitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
 	#randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
+	return
 
 	trainModel(x_train, y_train, x_test, y_test, pipeline, emotions)
 	return
