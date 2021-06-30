@@ -185,7 +185,10 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions, filename="m
 	prediction = pipeline.predict(x_test)
 	prediction_probabilities = pipeline.predict_proba(x_test)
 	accuracy = accuracy_score(y_test, prediction)
-	#print("Total Features:", len(pipeline.named_steps['clf'].coef_[0]))
+	try:
+		print("Total Features:", len(pipeline.named_steps['clf'].coef_[0]))
+	except:
+		pass
 	print("Subset Accuracy:", accuracy)
 	print(classification_report(y_test, prediction, target_names=emotions, zero_division=0, output_dict=False))
 	report = classification_report(y_test, prediction, target_names=emotions, zero_division=0, output_dict=True)
@@ -237,8 +240,8 @@ def randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
 def fitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
 	pg = [
 		{
-			'clf__estimator__reg_lambda': [0, .01, .1, 1,],
-			'clf__estimator__reg_alpha': [0, .01, .1, 1],
+			'clf__estimator__lambda': [0, 0.01, 0.1, 0.3, 0.5],
+			'clf__estimator__alpha': [0, 0.01, 0.1, 0.3 0.5],
 		},
 	]
 	scorers = ['accuracy', 'precision_micro', 'recall_micro', 'f1_micro', 'precision_macro', 'recall_macro', 'f1_macro']
@@ -360,7 +363,12 @@ def main():
 
 	xgboostPipeline = Pipeline([
 		('feats', features),
-		('clf', OneVsRestClassifier(XGBClassifier(objective='binary:logistic', eval_metric="logloss", n_estimators=100, max_depth=8, learning_rate=0.01, random_state=42, use_label_encoder=False, verbosity=1, n_jobs=1))),
+		('clf', OneVsRestClassifier(XGBClassifier(objective='binary:logistic', eval_metric="logloss", n_estimators=100, max_depth=8, learning_rate=0.01, scale_pos_weight=8, random_state=42, use_label_encoder=False, verbosity=1, n_jobs=1))),
+	])
+
+	xgboostLinearPipeline = Pipeline([
+		('feats', features),
+		('clf', OneVsRestClassifier(XGBClassifier(booster='gblinear', objective='binary:logistic', eval_metric="logloss", n_estimators=100, scale_pos_weight=8, learning_rate=0.01, random_state=42, use_label_encoder=False, verbosity=1, n_jobs=1))),
 	])
 
 	x_train = train
@@ -386,13 +394,10 @@ def main():
 	y_test_sent = test.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 	y_val_sent = val.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 
-	pipeline = xgboostPipeline
+	pipeline = xgboostLinearPipeline
 
-	#svd(x_train, y_train, x_val, y_val, features, emotions)
 	fitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
-	#randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
 	return
-
 	trainModel(x_train, y_train, x_test, y_test, pipeline, emotions)
 	return
 	#analyzeThresholds(pipeline, x_cv, y_cv, emotions)
