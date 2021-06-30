@@ -240,8 +240,7 @@ def randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
 def fitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
 	pg = [
 		{
-			'clf__estimator__lambda': [0, 0.01, 0.1, 0.3, 0.5],
-			'clf__estimator__alpha': [0, 0.01, 0.1, 0.3 0.5],
+			'clf__estimator__learning_rate': [0.001, 0.01, 0.05, 0.1],
 		},
 	]
 	scorers = ['accuracy', 'precision_micro', 'recall_micro', 'f1_micro', 'precision_macro', 'recall_macro', 'f1_macro']
@@ -362,13 +361,13 @@ def main():
 	])
 
 	xgboostPipeline = Pipeline([
-		('feats', features),
+		('feats', features_tfidf),
 		('clf', OneVsRestClassifier(XGBClassifier(objective='binary:logistic', eval_metric="logloss", n_estimators=100, max_depth=8, learning_rate=0.01, scale_pos_weight=8, random_state=42, use_label_encoder=False, verbosity=1, n_jobs=1))),
 	])
 
 	xgboostLinearPipeline = Pipeline([
 		('feats', features),
-		('clf', OneVsRestClassifier(XGBClassifier(booster='gblinear', objective='binary:logistic', eval_metric="logloss", n_estimators=100, scale_pos_weight=8, learning_rate=0.01, random_state=42, use_label_encoder=False, verbosity=1, n_jobs=1))),
+		('clf', OneVsRestClassifier(XGBClassifier(booster='gblinear', objective='binary:logistic', eval_metric="logloss", reg_alpha=0, reg_lambda=0, n_estimators=100, scale_pos_weight=8, learning_rate=0.01, random_state=42, use_label_encoder=False, verbosity=1, n_jobs=1))),
 	])
 
 	x_train = train
@@ -394,10 +393,10 @@ def main():
 	y_test_sent = test.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 	y_val_sent = val.labels.apply(lambda x: getYMatrixWithMap(x,len(sentEmotions), sent_idx_map)).to_list()
 
-	pipeline = xgboostLinearPipeline
+	pipeline = xgboostPipeline
 
-	fitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
-	return
+	#fitHyperparameters(x_train, y_train, x_val, y_val, pipeline)
+
 	trainModel(x_train, y_train, x_test, y_test, pipeline, emotions)
 	return
 	#analyzeThresholds(pipeline, x_cv, y_cv, emotions)
