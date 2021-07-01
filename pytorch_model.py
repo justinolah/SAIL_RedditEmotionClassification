@@ -8,12 +8,14 @@ from fasttext_model import *
 from learn import *
 
 class MultilayerPerceptron(nn.Module):
-	def __init__(self, input_dim, hidden_dim, output_dim):
+	def __init__(self, input_dim, hidden_dim1, hidden_dim2, output_dim):
 		super(MultilayerPerceptron, self).__init__()
 		self.layers = nn.Sequential(
-			nn.Linear(input_dim, hidden_dim),
+			nn.Linear(input_dim, hidden_dim1),
 			nn.ReLU(),
-			nn.Linear(hidden_dim, output_dim),
+			nn.Linear(hidden_dim1, hidden_dim2),
+			nn.ReLU(),
+			nn.Linear(hidden_dim2, output_dim),
 			nn.Sigmoid(),
 		)
 
@@ -54,9 +56,11 @@ class GoEmotionsDatasetGlove(Dataset):
 	def __getitem__(self, idx):
 		return self.data[idx], self.labels[idx]
 
-def trainNN(model, trainloader, optimizer, loss_fn):
+def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn):
 	counter = 0
 	train_running_loss = 0.0
+
+	model.train()
 
 	for i, batch in enumerate(trainloader):
 		counter += 1
@@ -74,7 +78,14 @@ def trainNN(model, trainloader, optimizer, loss_fn):
 
 		train_running_loss += loss.item()
 
-	return train_running_loss / counter
+	trainLoss = train_running_loss / counter
+
+	model.eval()
+	devOutput = model(devData)
+	devLoss = loss_fn(devOutput, devLabels).item()
+
+
+	return trainLoss, devLoss
 
 def main():
 	emotions = getEmotions()
@@ -87,9 +98,10 @@ def main():
 	maxSentenceLength = 33
 	epochs = 40
 	input_dim = maxSentenceLength * wordVecLength
-	hidden_dim = 2000
+	hidden_dim1 = 2000
+	hidden_dim2 = 2000
 	output_dim = len(emotions)
-	batch_size = 20
+	batch_size = 100
 	threshold = 0.5
 	lr = 1e-4
 	filename = "mlp"
@@ -97,18 +109,21 @@ def main():
 	#get data
 	train = getTrainSet()
 	test = getTestSet()
+	dev = getValSet()
 
 	print("Creating dataset...")
 	#dataset = GoEmotionsDatasetFasttext(train, emotions, ft=ft, wordVecLength=wordVecLength, maxSentenceLength=33)
 	#testset = GoEmotionsDatasetFasttext(test, emotions, ft=ft, wordVecLength=wordVecLength, maxSentenceLength=33)
+	#devset = GoEmotionsDatasetFasttext(dev, emotions, ft=ft, wordVecLength=wordVecLength, maxSentenceLength=33)
 	dataset = GoEmotionsDatasetGlove(train, emotions, gloveMap=gloveMap, wordVecLength=wordVecLength, maxSentenceLength=33)
 	testset = GoEmotionsDatasetGlove(test, emotions, gloveMap=gloveMap, wordVecLength=wordVecLength, maxSentenceLength=33)
+	devset = GoEmotionsDatasetGlove(dev, emotions, gloveMap=gloveMap, wordVecLength=wordVecLength, maxSentenceLength=33)
 	print("Done\n")
 
 	#pytorch model
 	print("Training NN...")
 	torch.manual_seed(42)
-	mlp = MultilayerPerceptron(input_dim, hidden_dim, output_dim)
+	mlp = MultilayerPerceptron(input_dim, hidden_dim1, hidden_dim2, output_dim)
 
 	optimizer = torch.optim.Adam(mlp.parameters(), lr=lr)
 	loss_fn= nn.BCELoss() #nn.BCEWithLogitsLoss() #nn.CrossEntropyLoss() #todo weights
@@ -117,18 +132,24 @@ def main():
 
 	#train model
 	mlp.train()
-	train_loss = []
+	trainLoss = []
+	devLoss = []
+	devData, devLabels = next(iter(torch.utils.data.DataLoader(devset, batch_size=len(devset))))
+
 	for epoch in range(epochs):
 		print("Epoch:", epoch)
-		epoch_loss = trainNN(mlp, trainloader, optimizer, loss_fn)
-		train_loss.append(epoch_loss)
-		print("Loss:", epoch_loss, "\n")
+		epoch_loss, dev_loss = trainNN(mlp, trainloader, devData, devLabels, optimizer, loss_fn)
+		trainLoss.append(epoch_loss)
+		devLoss.append(dev_loss)
+		print("Training Loss:", epoch_loss)
+		print("Dev Loss:", dev_loss, "\n")
 
 	print("Training complete\n")
 
 	#learning curve 
 	plt.figure(figsize=(10, 7))
-	plt.plot(train_loss, color='b', label='Training loss')
+	plt.plot(trainLoss, color='b', label='Training loss')
+	plt.plot(devLoss, color='r', label='Dev loss')
 	plt.xlabel('Epochs')
 	plt.ylabel('Loss')
 	plt.legend()
