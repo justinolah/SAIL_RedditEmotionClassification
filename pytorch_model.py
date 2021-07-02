@@ -3,24 +3,34 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 import pandas as pd
+from sklearn.utils.class_weight import compute_class_weight
 from helpers import *
 from fasttext_model import *
 from learn import *
+from loss_functions import *
 
 class MultilayerPerceptron(nn.Module):
 	def __init__(self, input_dim, hidden_dim1, hidden_dim2, output_dim):
 		super(MultilayerPerceptron, self).__init__()
-		self.layers = nn.Sequential(
-			nn.Linear(input_dim, hidden_dim1),
-			nn.ReLU(),
-			nn.Linear(hidden_dim1, hidden_dim2),
-			nn.ReLU(),
-			nn.Linear(hidden_dim2, output_dim),
-			nn.Sigmoid(),
-		)
+		if hidden_dim2 != 0:
+			self.layers = nn.Sequential(
+				nn.Linear(input_dim, hidden_dim1),
+				nn.ReLU(),
+				nn.Linear(hidden_dim1, hidden_dim2),
+				nn.ReLU(),
+				nn.Linear(hidden_dim2, output_dim),
+				nn.Sigmoid(),
+			)
+		else:
+			self.layers = nn.Sequential(
+				nn.Linear(input_dim, hidden_dim1),
+				nn.ReLU(),
+				nn.Linear(hidden_dim1, output_dim),
+				nn.Sigmoid(),
+			)
 
 	def forward(self, x_in):
-		 return self.layers(x_in)
+		return self.layers(x_in)
 
 class GoEmotionsDatasetFasttext(Dataset):
 	def __init__(self, data, emotions, ft=None, wordVecLength=300, maxSentenceLength=33):
@@ -96,10 +106,10 @@ def main():
 
 	#parameters
 	maxSentenceLength = 33
-	epochs = 40
+	epochs = 30
 	input_dim = maxSentenceLength * wordVecLength
-	hidden_dim1 = 2000
-	hidden_dim2 = 2000
+	hidden_dim1 = 200
+	hidden_dim2 = 0
 	output_dim = len(emotions)
 	batch_size = 100
 	threshold = 0.5
@@ -126,7 +136,8 @@ def main():
 	mlp = MultilayerPerceptron(input_dim, hidden_dim1, hidden_dim2, output_dim)
 
 	optimizer = torch.optim.Adam(mlp.parameters(), lr=lr)
-	loss_fn= nn.BCELoss() #nn.BCEWithLogitsLoss() #nn.CrossEntropyLoss() #todo weights
+	#loss_fn= nn.BCELoss() #todo weights
+	loss_fn = lsep
 
 	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=1)
 

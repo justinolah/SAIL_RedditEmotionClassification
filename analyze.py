@@ -1,6 +1,7 @@
 from helpers import *
 
 def main():
+	svdResultsGraph()
 	data = getData()
 
 	print("Total examples:", len(data))
@@ -62,8 +63,12 @@ def main():
 
 	palette = sns.diverging_palette(220, 20, n=256)
 
+	mask = np.zeros_like(correlation, dtype=np.bool)
+	mask[np.diag_indices(mask.shape[0])] = True
+
 	sns.heatmap(
     	correlation, 
+    	mask=mask,
     	vmin=-.25,
     	vmax=.25, 
     	center=0,
