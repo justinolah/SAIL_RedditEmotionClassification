@@ -81,7 +81,7 @@ class GoEmotionsDatasetGlove(Dataset):
 	def getBalancedClassWeights(self):
 		return len(self.labels) / (self.numEmotions * torch.sum(self.labels,0))
 
-def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn):
+def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights):
 	counter = 0
 	train_running_loss = 0.0
 
@@ -97,7 +97,7 @@ def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn):
 		#print("labels:", labels)
 		#print("outputs:", outputs)
 
-		loss = loss_fn(outputs, labels)
+		loss = loss_fn(outputs, labels, weights=weights)
 		loss.backward()
 		optimizer.step()
 
@@ -121,10 +121,10 @@ def main():
 
 	#parameters
 	maxSentenceLength = 33
-	epochs = 15
+	epochs = 25
 	input_dim = maxSentenceLength * wordVecLength
 	hidden_dim1 = 2000
-	hidden_dim2 = 0
+	hidden_dim2 = 200
 	droput = 0
 	output_dim = len(emotions)
 	batch_size = 100
@@ -163,8 +163,8 @@ def main():
 	weights = None
 	if balanced:
 		weights = dataset.getBalancedClassWeights()
-	loss_fn= nn.BCELoss(weight=weights)
-	#loss_fn = warp
+	#loss_fn= nn.BCELoss()
+	loss_fn = wlsep
 
 	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=1)
 
@@ -176,7 +176,7 @@ def main():
 
 	for epoch in range(epochs):
 		print("Epoch:", epoch)
-		epoch_loss, dev_loss = trainNN(mlp, trainloader, devData, devLabels, optimizer, loss_fn)
+		epoch_loss, dev_loss = trainNN(mlp, trainloader, devData, devLabels, optimizer, loss_fn, weights)
 		trainLoss.append(epoch_loss)
 		devLoss.append(dev_loss)
 		print("Training Loss:", epoch_loss)
