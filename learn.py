@@ -206,7 +206,7 @@ def trainModel(x_train, y_train, x_test, y_test, pipeline, emotions, filename="m
 	results.to_csv("tables/" + filename + "_results.csv")
 
 	#confusion matrix
-	if prediction_probabilities:
+	if prediction_probabilities is not None:
 		multilabel_confusion_matrix(np.array(y_test), np.array(prediction_probabilities), emotions, top_x=3, filename=filename)
 
 def randomFitHyperparameters(x_train, y_train, x_val, y_val, pipeline):
