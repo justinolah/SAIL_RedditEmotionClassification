@@ -10,25 +10,32 @@ from learn import *
 from loss_functions import *
 
 class MultilayerPerceptron(nn.Module):
-	def __init__(self, input_dim, hidden_dim1, hidden_dim2, output_dim):
+	def __init__(self, input_dim, hidden_dim1, hidden_dim2, output_dim, dropout=0):
 		super(MultilayerPerceptron, self).__init__()
 		if hidden_dim2 != 0:
 			self.layers = nn.Sequential(
 				nn.Linear(input_dim, hidden_dim1),
 				nn.ReLU(),
+				nn.Dropout(p=dropout),
 				nn.Linear(hidden_dim1, hidden_dim2),
 				nn.ReLU(),
+				nn.Dropout(p=dropout),
 				nn.Linear(hidden_dim2, output_dim),
+				nn.Sigmoid(),
+			)
+		elif hidden_dim1 != 0:
+			self.layers = nn.Sequential(
+				nn.Linear(input_dim, hidden_dim1),
+				nn.ReLU(),
+				nn.Dropout(p=dropout),
+				nn.Linear(hidden_dim1, output_dim),
 				nn.Sigmoid(),
 			)
 		else:
 			self.layers = nn.Sequential(
-				nn.Linear(input_dim, hidden_dim1),
-				nn.ReLU(),
-				nn.Linear(hidden_dim1, output_dim),
+				nn.Linear(input_dim, output_dim),
 				nn.Sigmoid(),
 			)
-
 	def forward(self, x_in):
 		return self.layers(x_in)
 
@@ -37,34 +44,42 @@ class GoEmotionsDatasetFasttext(Dataset):
 		if ft is None:
 			ft, wordVecLength = getFasttextModel()
 		self.emotions = emotions
+		self.numEmotions = len(emotions)
 		self.maxSentenceLength = maxSentenceLength
 		self.ft = ft
 		self.wordVecLength = wordVecLength
 		self.data = torch.Tensor(data.text.apply(cleanTextForEmbedding).apply(lambda x: getSentenceVectorPadded(x, ft, maxSentenceLength, wordVecLength)))
-		self.labels = torch.Tensor(data.labels.apply(lambda x: getYMatrix(x,len(emotions))))
+		self.labels = torch.Tensor(data.labels.apply(lambda x: getYMatrix(x,self.numEmotions)))
 
 	def __len__(self):
 		return len(self.data)
 
 	def __getitem__(self, idx):
 		return self.data[idx], self.labels[idx]
+
+	def getBalancedClassWeights(self):
+		return len(self.labels) / (self.numEmotions * torch.sum(self.labels,0))
 
 class GoEmotionsDatasetGlove(Dataset):
 	def __init__(self, data, emotions, gloveMap=None, wordVecLength=100, maxSentenceLength=33):
 		if gloveMap is None:
 			gloveMap, wordVecLength = getGloveMap()
 		self.emotions = emotions
+		self.numEmotions = len(emotions)
 		self.maxSentenceLength = maxSentenceLength
 		self.gloveMap = gloveMap
 		self.wordVecLength = wordVecLength
 		self.data = torch.Tensor(data.text.apply(cleanTextForEmbedding).apply(lambda x: getGloveVector(x, gloveMap, maxSentenceLength, wordVecLength)))
-		self.labels = torch.Tensor(data.labels.apply(lambda x: getYMatrix(x,len(emotions))))
+		self.labels = torch.Tensor(data.labels.apply(lambda x: getYMatrix(x,self.numEmotions)))
 
 	def __len__(self):
 		return len(self.data)
 
 	def __getitem__(self, idx):
 		return self.data[idx], self.labels[idx]
+
+	def getBalancedClassWeights(self):
+		return len(self.labels) / (self.numEmotions * torch.sum(self.labels,0))
 
 def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn):
 	counter = 0
@@ -106,14 +121,17 @@ def main():
 
 	#parameters
 	maxSentenceLength = 33
-	epochs = 30
+	epochs = 15
 	input_dim = maxSentenceLength * wordVecLength
-	hidden_dim1 = 200
+	hidden_dim1 = 2000
 	hidden_dim2 = 0
+	droput = 0
 	output_dim = len(emotions)
 	batch_size = 100
 	threshold = 0.5
-	lr = 1e-4
+	lr = 1e-3
+	balanced=True
+	embedding = "glove"
 	filename = "mlp"
 
 	#get data
@@ -122,12 +140,17 @@ def main():
 	dev = getValSet()
 
 	print("Creating dataset...")
-	#dataset = GoEmotionsDatasetFasttext(train, emotions, ft=ft, wordVecLength=wordVecLength, maxSentenceLength=33)
-	#testset = GoEmotionsDatasetFasttext(test, emotions, ft=ft, wordVecLength=wordVecLength, maxSentenceLength=33)
-	#devset = GoEmotionsDatasetFasttext(dev, emotions, ft=ft, wordVecLength=wordVecLength, maxSentenceLength=33)
-	dataset = GoEmotionsDatasetGlove(train, emotions, gloveMap=gloveMap, wordVecLength=wordVecLength, maxSentenceLength=33)
-	testset = GoEmotionsDatasetGlove(test, emotions, gloveMap=gloveMap, wordVecLength=wordVecLength, maxSentenceLength=33)
-	devset = GoEmotionsDatasetGlove(dev, emotions, gloveMap=gloveMap, wordVecLength=wordVecLength, maxSentenceLength=33)
+	if embedding == "fasttext":
+		dataset = GoEmotionsDatasetFasttext(train, emotions, ft=ft, wordVecLength=wordVecLength, maxSentenceLength=33)
+		testset = GoEmotionsDatasetFasttext(test, emotions, ft=ft, wordVecLength=wordVecLength, maxSentenceLength=33)
+		devset = GoEmotionsDatasetFasttext(dev, emotions, ft=ft, wordVecLength=wordVecLength, maxSentenceLength=33)
+	elif embedding == "glove":
+		dataset = GoEmotionsDatasetGlove(train, emotions, gloveMap=gloveMap, wordVecLength=wordVecLength, maxSentenceLength=33)
+		testset = GoEmotionsDatasetGlove(test, emotions, gloveMap=gloveMap, wordVecLength=wordVecLength, maxSentenceLength=33)
+		devset = GoEmotionsDatasetGlove(dev, emotions, gloveMap=gloveMap, wordVecLength=wordVecLength, maxSentenceLength=33)
+	else:
+		print("Error: Invalid Embedding")
+		return
 	print("Done\n")
 
 	#pytorch model
@@ -136,8 +159,12 @@ def main():
 	mlp = MultilayerPerceptron(input_dim, hidden_dim1, hidden_dim2, output_dim)
 
 	optimizer = torch.optim.Adam(mlp.parameters(), lr=lr)
-	#loss_fn= nn.BCELoss() #todo weights
-	loss_fn = lsep
+
+	weights = None
+	if balanced:
+		weights = dataset.getBalancedClassWeights()
+	loss_fn= nn.BCELoss(weight=weights)
+	#loss_fn = warp
 
 	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=1)
 
@@ -161,6 +188,7 @@ def main():
 	plt.figure(figsize=(10, 7))
 	plt.plot(trainLoss, color='b', label='Training loss')
 	plt.plot(devLoss, color='r', label='Dev loss')
+	plt.title(f"Embedding:{embedding}, H1:{hidden_dim1}, H2:{hidden_dim2}, LR:{lr}, BS:{batch_size}, Balanced:{balanced}")
 	plt.xlabel('Epochs')
 	plt.ylabel('Loss')
 	plt.legend()
