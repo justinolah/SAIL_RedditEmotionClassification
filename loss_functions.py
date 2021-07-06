@@ -14,6 +14,7 @@
 -- By Mathew Monfort, mmonfort@mit.edu
 '''
 import torch
+import torch.nn as nn
 from torch.nn import functional as F
 
 # https://arxiv.org/abs/1911.00232
@@ -72,6 +73,6 @@ def bp_mll(scores, labels, weights=None):
 def bce(output, labels, weights=None):
 	if weights is not None:
 		return (((1.-weights)*labels + weights*(1.-labels))*
-						 bceCriterion(output, torch.autograd.Variable(labels))).sum(1).mean()
+						 nn.bceCriterion(output, torch.autograd.Variable(labels))).sum(1).mean()
 	else:
-		return bceCriterion(output, torch.autograd.Variable(labels)).sum(1).mean()
+		return nn.bceCriterion(output, torch.autograd.Variable(labels)).sum(1).mean()
