@@ -93,7 +93,7 @@ def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights,
 		optimizer.zero_grad()
 		outputs = model(inputs)
 
-		loss = loss_fn(outputs, labels, weights=weights)
+		loss = loss_fn(outputs, labels)#, weights=weights)
 		loss.backward()
 		optimizer.step()
 
@@ -179,8 +179,8 @@ def main():
 		total += 1./(i+1)
 		rank_w[i] = total
 
-	#loss_fn= nn.BCELoss()
-	loss_fn = wlsep
+	loss_fn= nn.BCELoss()
+	#loss_fn = wlsep
 	#loss_fn = lambda x,y,weights=weights : warp(x,y,rank_w,weights=weights)
 
 	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=1)
@@ -216,7 +216,7 @@ def main():
 	data, labels = testset[:]
 
 	outputs = mlp(data.to(device))
-	prediction = (outputs > threshold).int()
+	prediction = (outputs > threshold).int().cpu()
 
 	accuracy = accuracy_score(labels, prediction)
 	print("Subset Accuracy:", accuracy)
