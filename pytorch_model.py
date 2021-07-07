@@ -36,8 +36,8 @@ class MultilayerPerceptron(nn.Module):
 				nn.Linear(input_dim, output_dim),
 				nn.Sigmoid(),
 			)
-	def forward(self, x_in):
-		return self.layers(x_in)
+	def forward(self, x):
+		return self.layers(x)
 
 class GoEmotionsDatasetFasttext(Dataset):
 	def __init__(self, data, emotions, ft=None, wordVecLength=300, maxSentenceLength=33):
@@ -81,21 +81,17 @@ class GoEmotionsDatasetGlove(Dataset):
 	def getBalancedClassWeights(self):
 		return len(self.labels) / (self.numEmotions * torch.sum(self.labels,0))
 
-def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights):
+def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights, device):
 	counter = 0
 	train_running_loss = 0.0
 
 	model.train()
 
-	for i, batch in enumerate(trainloader):
+	for i, (inputs, labels) in enumerate(trainloader):
 		counter += 1
-		inputs, labels = batch
+		inputs, labels = inputs.to(device), labels.to(device)
 		optimizer.zero_grad()
 		outputs = model(inputs)
-
-		#print("inputs:", inputs)
-		#print("labels:", labels)
-		#print("outputs:", outputs)
 
 		loss = loss_fn(outputs, labels, weights=weights)
 		loss.backward()
@@ -106,8 +102,8 @@ def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights)
 	trainLoss = train_running_loss / counter
 
 	model.eval()
-	devOutput = model(devData)
-	devLoss = loss_fn(devOutput, devLabels).item()
+	devOutput = model(devData.to(device))
+	devLoss = loss_fn(devOutput, devLabels.to(device)).item()
 
 
 	return trainLoss, devLoss
@@ -116,23 +112,36 @@ def main():
 	emotions = getEmotions()
 	emotions.remove("neutral")
 
-	#ft, wordVecLength = getFasttextModel()
-	gloveMap, wordVecLength = getGloveMap()
+	if torch.cuda.is_available():
+		print("Using cuda...")
+		device = torch.device("cuda")
+	else:
+		print("Using cpu...")
+		device = torch.device("cpu")
 
 	#parameters
+	embedding = "glove"
 	maxSentenceLength = 33
-	epochs = 25
-	input_dim = maxSentenceLength * wordVecLength
-	hidden_dim1 = 2000
-	hidden_dim2 = 200
+	epochs = 5
+	hidden_dim1 = 200
+	hidden_dim2 = 0
 	droput = 0
 	output_dim = len(emotions)
 	batch_size = 100
 	threshold = 0.5
 	lr = 1e-3
 	balanced=True
-	embedding = "glove"
 	filename = "mlp"
+
+	if embedding == "fasttext":
+		ft, wordVecLength = getFasttextModel()
+	elif embedding == "glove":
+		gloveMap, wordVecLength = getGloveMap()
+	else:
+		print("Error: Invalid Embedding")
+		return
+
+	input_dim = maxSentenceLength * wordVecLength
 
 	#get data
 	train = getTrainSet()
@@ -157,14 +166,22 @@ def main():
 	print("Training NN...")
 	torch.manual_seed(42)
 	mlp = MultilayerPerceptron(input_dim, hidden_dim1, hidden_dim2, output_dim)
+	mlp.to(device)
 
 	optimizer = torch.optim.Adam(mlp.parameters(), lr=lr)
 
 	weights = None
 	if balanced:
 		weights = dataset.getBalancedClassWeights()
-	#loss_fn= nn.BCELoss()
-	loss_fn = wlsep
+	rank_w = torch.zeros(output_dim)
+	total = 0.
+	for i in range(output_dim):
+		total += 1./(i+1)
+		rank_w[i] = total
+
+	loss_fn= nn.BCELoss()
+	#loss_fn = wlsep
+	#loss_fn = lambda x,y,weights=weights : warp(x,y,rank_w,weights=weights)
 
 	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=1)
 
@@ -176,7 +193,7 @@ def main():
 
 	for epoch in range(epochs):
 		print("Epoch:", epoch)
-		epoch_loss, dev_loss = trainNN(mlp, trainloader, devData, devLabels, optimizer, loss_fn, weights)
+		epoch_loss, dev_loss = trainNN(mlp, trainloader, devData, devLabels, optimizer, loss_fn, weights, device)
 		trainLoss.append(epoch_loss)
 		devLoss.append(dev_loss)
 		print("Training Loss:", epoch_loss)
@@ -197,6 +214,7 @@ def main():
 	#Testing metrics
 	mlp.eval()
 	data, labels = testset[:]
+	data, labels = data.to(device), labels.to(device)
 
 	outputs = mlp(data)
 	prediction = (outputs > threshold).int()
