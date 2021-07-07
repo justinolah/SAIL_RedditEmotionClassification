@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 import pandas as pd
-from sklearn.utils.class_weight import compute_class_weight
+from sklearn.metrics import f1_score
 from helpers import *
 from fasttext_model import *
 from learn import *
@@ -81,17 +81,23 @@ class GoEmotionsDatasetGlove(Dataset):
 	def getBalancedClassWeights(self):
 		return len(self.labels) / (self.numEmotions * torch.sum(self.labels,0))
 
-def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights, device):
+def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights, threshold, device):
 	counter = 0
 	train_running_loss = 0.0
 
 	model.train()
 
+	allTargets = []
+	allPredictions = []
+
 	for i, (inputs, labels) in enumerate(trainloader):
 		counter += 1
+		allTargets.append(labels.detach())
+
 		inputs, labels = inputs.to(device), labels.to(device)
 		optimizer.zero_grad()
 		outputs = model(inputs)
+		allPredictions.append((outputs.cpu() > threshold).int().detach())
 
 		loss = loss_fn(outputs, labels)#, weights=weights)
 		loss.backward()
@@ -105,8 +111,13 @@ def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights,
 	devOutput = model(devData.to(device))
 	devLoss = loss_fn(devOutput, devLabels.to(device)).item()
 
+	allPredictions = np.concatenate(allPredictions)
+	allTargets = np.concatenate(allTargets)
 
-	return trainLoss, devLoss
+	f1_train = f1_score(allTargets, allPredictions, average='macro')
+	f1_dev = f1_score(devLabels.detach(), (devOutput.cpu() > threshold).int().detach(), average='macro')
+
+	return trainLoss, devLoss, f1_train, f1_dev
 
 def main():
 	emotions = getEmotions()
@@ -183,33 +194,42 @@ def main():
 	#loss_fn = wlsep
 	#loss_fn = lambda x,y,weights=weights : warp(x,y,rank_w,weights=weights)
 
-	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=1)
+	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 	#train model
 	mlp.train()
 	trainLoss = []
 	devLoss = []
+	trainF1 = []
+	devF1 = []
 	devData, devLabels = next(iter(torch.utils.data.DataLoader(devset, batch_size=len(devset))))
 
 	for epoch in range(epochs):
 		print("Epoch:", epoch)
-		epoch_loss, dev_loss = trainNN(mlp, trainloader, devData, devLabels, optimizer, loss_fn, weights, device)
+		epoch_loss, dev_loss, f1_train, f1_dev = trainNN(mlp, trainloader, devData, devLabels, optimizer, loss_fn, weights, threshold, device)
 		trainLoss.append(epoch_loss)
 		devLoss.append(dev_loss)
+		trainF1.append(f1_train)
+		devF1.append(f1_dev)
 		print("Training Loss:", epoch_loss)
-		print("Dev Loss:", dev_loss, "\n")
+		print("Dev Loss:", dev_loss)
+		print("Training Macro F1:", f1_train)
+		print("Dev Macro F1:", f1_dev, "\n")
 
 	print("Training complete\n")
 
 	#learning curve 
-	plt.figure(figsize=(10, 7))
-	plt.plot(trainLoss, color='b', label='Training loss')
-	plt.plot(devLoss, color='r', label='Dev loss')
-	plt.title(f"Embedding:{embedding}, H1:{hidden_dim1}, H2:{hidden_dim2}, LR:{lr}, BS:{batch_size}, Balanced:{balanced}")
-	plt.xlabel('Epochs')
-	plt.ylabel('Loss')
-	plt.legend()
-	plt.savefig('plots/learningcurve.pdf')
+	fig, (ax1, ax2) = plt.subplots(2, figsize=(11, 9))
+	ax1.plot(trainLoss, color='b', label='Training loss')
+	ax1.plot(devLoss, color='r', label='Dev loss')
+	fig.suptitle(f"Embedding:{embedding}, H1:{hidden_dim1}, H2:{hidden_dim2}, LR:{lr}, BS:{batch_size}, Balanced:{balanced}")
+	ax1.set(xlabel='Epochs', ylabel="Loss")
+	ax1.legend()
+	ax2.plot(trainF1, color='b', label='Training Macro F1')
+	ax2.plot(devF1, color='r', label='Dev Macro F1')
+	ax2.set(xlabel='Epochs', ylabel="Macro F1")
+	ax2.legend()
+	fig.savefig('plots/learningcurve.png')
 
 	#Testing metrics
 	mlp.eval()
