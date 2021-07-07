@@ -179,8 +179,8 @@ def main():
 		total += 1./(i+1)
 		rank_w[i] = total
 
-	loss_fn= nn.BCELoss()
-	#loss_fn = wlsep
+	#loss_fn= nn.BCELoss()
+	loss_fn = wlsep
 	#loss_fn = lambda x,y,weights=weights : warp(x,y,rank_w,weights=weights)
 
 	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=1)
@@ -214,9 +214,8 @@ def main():
 	#Testing metrics
 	mlp.eval()
 	data, labels = testset[:]
-	data, labels = data.to(device), labels.to(device)
 
-	outputs = mlp(data)
+	outputs = mlp(data.to(device))
 	prediction = (outputs > threshold).int()
 
 	accuracy = accuracy_score(labels, prediction)
