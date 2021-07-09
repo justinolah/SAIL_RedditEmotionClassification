@@ -40,31 +40,6 @@ def getSentenceVectorPadded(text, ft, maxLength, wordVecLength):
 
 	return vec
 
-def getGloveVector(text, gloveMap, maxLength, wordVecLength):
-	words = text.split()
-	vec = []
-	word_count = 0
-
-	for word in words:
-		if word_count == maxLength:
-			break
-		wordVec = gloveMap.get(word)
-		if wordVec is not None:
-			vec += list(wordVec)
-		else:
-			vec += list([0] * wordVecLength)
-		
-		word_count += 1
-
-	while word_count < maxLength:
-		vec += list([0] * wordVecLength)
-		word_count += 1
-
-	assert len(vec) == maxLength * wordVecLength
-
-	return vec
-
-
 def trainSupervisedFasttext(train, test, emotions):
 
 	#format labels
