@@ -8,7 +8,6 @@ from torchtext.data import Field, Dataset, Example, Iterator
 import pandas as pd
 from sklearn.metrics import f1_score
 from helpers import *
-from fasttext_model import *
 from learn import *
 from loss_functions import *
 
@@ -191,7 +190,7 @@ def main():
 		total += 1./(i+1)
 		rank_w[i] = total
 
-	loss_fn= nn.BCELoss()
+	loss_fn= nn.BCELoss() #todo bce with logits
 	#loss_fn = wlsep
 	#loss_fn = lambda x,y,weights=weights : warp(x,y,rank_w,weights=weights)
 
