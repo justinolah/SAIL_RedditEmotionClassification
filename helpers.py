@@ -45,6 +45,13 @@ def cleanText(data, lemmatize=True):
 	data.text = data.text.apply(lambda x: processText(x,stopwords,lemmatize))
 	data = data[data.text.str.len() > 0]
 
+def cleanTextForEmbedding(text):
+	text = text.lower()
+	text = re.sub(r"[^a-z\s]+", " ", text)
+	text = re.sub(r"\s+", " ", text)
+	words = text.split()
+	return " ".join([word for word in words if len(word) >= MIN_WORD_LENGTH])
+
 def CheckAgreement(ex, min_agreement, all_emotions, max_agreement=100):
 	sum_ratings = ex[all_emotions].sum(axis=0)
 	agreement = ((sum_ratings >= min_agreement) & (sum_ratings <= max_agreement))

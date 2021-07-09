@@ -12,13 +12,6 @@ def getFasttextModel():
 	print("Loaded\n")
 	return ft, wordVecLength
 
-def cleanTextForEmbedding(text):
-	text = text.lower()
-	text = re.sub(r"[^a-z\s]+", " ", text)
-	text = re.sub(r"\s+", " ", text)
-	words = text.split()
-	return " ".join([word for word in words if len(word) >= MIN_WORD_LENGTH])
-
 def getSentenceVectorAverageWord(text, ft):
 	return ft.get_sentence_vector(text)
 

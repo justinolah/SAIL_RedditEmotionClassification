@@ -17,7 +17,6 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, cross_val_
 import xgboost as xgb
 from xgboost import XGBClassifier
 from helpers import *
-from fasttext_model import *
 
 parse, category_names = liwc.load_token_parser('data/LIWC.dic')
 emoticons = getEmoticons()
