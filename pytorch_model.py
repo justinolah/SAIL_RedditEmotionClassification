@@ -50,7 +50,7 @@ class GoEmotionsDataset(Dataset):
             fields
         )
         self.balancedClassWeights = len(data.labels) / (numEmotions * torch.sum(torch.tensor(data.labels),0))
-        self.posWeights = torch.div((len(data.labels) - torch.sum(torch.tensor(data.labels),0)), 2.5 * torch.sum(torch.tensor(data.labels),0), rounding_mode='floor')
+        #self.posWeights = torch.div((len(data.labels) - torch.sum(torch.tensor(data.labels),0)), 2.5 * torch.sum(torch.tensor(data.labels),0), rounding_mode='floor')
 
 def makeDataset(data, emotions, text_field, labels_field):
 	data.labels = data.labels.apply(lambda x: getYMatrix(x,len(emotions)))
@@ -119,7 +119,7 @@ def main():
 	#parameters
 	maxSentenceLength = 31
 	embedding_dim = 300
-	epochs = 8
+	epochs = 4
 	input_dim = maxSentenceLength
 	hidden_dim1 = 1000
 	hidden_dim2 = 0
@@ -191,7 +191,7 @@ def main():
 		total += 1./(i+1)
 		rank_w[i] = total
 
-	loss_fn= nn.BCEWithLogitsLoss(pos_weight= 8*torch.ones(len(emotions)))#torch.minimum(dataset.posWeights, 8 * torch.ones(len(emotions))))
+	loss_fn= nn.BCEWithLogitsLoss(pos_weight= 8*torch.ones(len(emotions)).to(device))#torch.minimum(dataset.posWeights, 8 * torch.ones(len(emotions))))
 	#loss_fn = wlsep
 	#loss_fn = lambda x,y,weights=weights : warp(x,y,rank_w,weights=weights)
 
