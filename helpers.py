@@ -115,6 +115,7 @@ def getEkmanDict():
 	with open(EKMAN_DICT_FILE) as json_file:
 		return json.load(json_file)
 
+#depreciated
 def getGlove():
 	print("Getting pretrained glove embedding model...")
 	embeddingSize = 100
@@ -134,6 +135,7 @@ def getGlove():
 	print("Loaded.\n")
 	return vectors, words, word2idx, embeddingSize
 
+#depreciated
 def getGloveVector(text, gloveMap, maxLength, wordVecLength):
 	words = text.split()
 	vec = []

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import torchtext
-from torchtext.vocab import GloVe
+from torchtext.vocab import GloVe, FastText
 from torchtext.data import Field, Dataset, Example, Iterator
 import pandas as pd
 from sklearn.metrics import f1_score
@@ -24,7 +24,6 @@ class MultilayerPerceptron(nn.Module):
 				nn.ReLU(),
 				nn.Dropout(p=dropout),
 				nn.Linear(hidden_dim2, output_dim),
-				nn.Sigmoid(),
 			)
 		elif hidden_dim1 != 0:
 			self.layers = nn.Sequential(
@@ -32,12 +31,10 @@ class MultilayerPerceptron(nn.Module):
 				nn.ReLU(),
 				nn.Dropout(p=dropout),
 				nn.Linear(hidden_dim1, output_dim),
-				nn.Sigmoid(),
 			)
 		else:
 			self.layers = nn.Sequential(
 				nn.Linear(input_dim * embedding_dim, output_dim),
-				nn.Sigmoid(),
 			)
 	def forward(self, x):
 		features = self.embedding[x].reshape(x.size()[0], -1)
@@ -53,6 +50,7 @@ class GoEmotionsDataset(Dataset):
             fields
         )
         self.balancedClassWeights = len(data.labels) / (numEmotions * torch.sum(torch.tensor(data.labels),0))
+        self.posWeights = torch.div((len(data.labels) - torch.sum(torch.tensor(data.labels),0)), 2.5 * torch.sum(torch.tensor(data.labels),0), rounding_mode='floor')
 
 def makeDataset(data, emotions, text_field, labels_field):
 	data.labels = data.labels.apply(lambda x: getYMatrix(x,len(emotions)))
@@ -68,6 +66,7 @@ def makeDataset(data, emotions, text_field, labels_field):
 def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights, threshold, device):
 	counter = 0
 	train_running_loss = 0.0
+	sigmoid = nn.Sigmoid()
 
 	model.train()
 
@@ -96,6 +95,7 @@ def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights,
 	model.eval()
 	devOutput = model(devData.to(device))
 	devLoss = loss_fn(devOutput, devLabels.to(device)).item()
+	devOutput = sigmoid(devOutput)
 
 	allPredictions = np.concatenate(allPredictions)
 	allTargets = np.concatenate(allTargets)
@@ -118,21 +118,22 @@ def main():
 
 	#parameters
 	maxSentenceLength = 31
-	embedding_dim = 100
-	epochs = 2
+	embedding_dim = 300
+	epochs = 8
 	input_dim = maxSentenceLength
-	hidden_dim1 = 2000
-	hidden_dim2 = 200
+	hidden_dim1 = 1000
+	hidden_dim2 = 0
 	droput = 0
 	output_dim = len(emotions)
-	batch_size = 528
+	batch_size = 64
 	threshold = 0.5
 	lr = 1e-3
-	balanced=True
+	balanced=False
 	filename = "mlp"
 
-	print("Loading glove..")
-	embedding_glove = GloVe(name='twitter.27B', dim=embedding_dim)
+	print("Loading glove..\n")
+	#rawEmbedding = GloVe(name='twitter.27B', dim=embedding_dim)
+	rawEmbedding = FastText(language='en')
 
 	#get data
 	train = getTrainSet()
@@ -162,7 +163,7 @@ def main():
 
 	text_field.build_vocab(
     	preprocessed_text, 
-    	vectors=embedding_glove,
+    	vectors=rawEmbedding,
 	)
 
 	vocab = text_field.vocab
@@ -175,7 +176,7 @@ def main():
 	#pytorch model
 	print("Training NN...")
 	torch.manual_seed(42)
-	mlp = MultilayerPerceptron(vocab.vectors, embedding_dim, input_dim, hidden_dim1, hidden_dim2, output_dim)
+	mlp = MultilayerPerceptron(vocab.vectors.to(device), embedding_dim, input_dim, hidden_dim1, hidden_dim2, output_dim)
 	mlp.to(device)
 
 	optimizer = torch.optim.Adam(mlp.parameters(), lr=lr)
@@ -190,7 +191,7 @@ def main():
 		total += 1./(i+1)
 		rank_w[i] = total
 
-	loss_fn= nn.BCELoss() #todo bce with logits
+	loss_fn= nn.BCEWithLogitsLoss(pos_weight= 8*torch.ones(len(emotions)))#torch.minimum(dataset.posWeights, 8 * torch.ones(len(emotions))))
 	#loss_fn = wlsep
 	#loss_fn = lambda x,y,weights=weights : warp(x,y,rank_w,weights=weights)
 
@@ -218,11 +219,14 @@ def main():
 
 	print("Training complete\n")
 
+	bestEpochDevF1 = np.argmax(np.array(devF1))
+	print("Best Dev F1:", devF1[bestEpochDevF1], "at epoch", bestEpochDevF1, "\n")
+
 	#learning curve 
 	fig, (ax1, ax2) = plt.subplots(2, figsize=(11, 9))
 	ax1.plot(trainLoss, color='b', label='Training loss')
 	ax1.plot(devLoss, color='r', label='Dev loss')
-	fig.suptitle(f"{hidden_dim1}X{hidden_dim2}, LR:{lr}, BS:{batch_size}, Balanced:{balanced}")
+	fig.suptitle(f"{hidden_dim1}X{hidden_dim2}, LR:{lr}, BS:{batch_size}, Embedding Size: {embedding_dim}")
 	ax1.set(xlabel='Epochs', ylabel="Loss")
 	ax1.legend()
 	ax2.plot(trainF1, color='b', label='Training Macro F1')
@@ -233,11 +237,13 @@ def main():
 
 	#Testing metrics
 	mlp.eval()
+	sigmoid = nn.Sigmoid()
 	testbatch = devbatch = next(iter(Iterator(testset, len(devset))))
 	data = testbatch.text.T
 	labels = testbatch.labels.float()
 
 	outputs = mlp(data.to(device))
+	outputs = sigmoid(outputs)
 	prediction = (outputs > threshold).int().cpu()
 
 	accuracy = accuracy_score(labels, prediction)
