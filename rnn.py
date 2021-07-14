@@ -1,90 +1,63 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
-import torchtext
-from torchtext.vocab import GloVe, FastText
-from torchtext.data import Field, Dataset, Example, Iterator
-import pandas as pd
-from sklearn.metrics import f1_score
-from helpers import *
-from learn import *
-from loss_functions import *
+from pytorch_model import *
 
-class MultilayerPerceptron(nn.Module):
-	def __init__(self, embedding, embedding_dim, input_dim, hidden_dim1, hidden_dim2, output_dim, dropout=0):
-		super(MultilayerPerceptron, self).__init__()
+class UniLatLSTM(nn.Module):
+	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0):
+		super(UniLatLSTM, self).__init__()
+		self.hidden_dim = hidden_dim
+		self.output_dim = output_dim
 		self.embedding = embedding
-		if hidden_dim2 != 0:
-			self.layers = nn.Sequential(
-				nn.Linear(input_dim * embedding_dim, hidden_dim1),
-				nn.ReLU(),
-				nn.Dropout(p=dropout),
-				nn.Linear(hidden_dim1, hidden_dim2),
-				nn.ReLU(),
-				nn.Dropout(p=dropout),
-				nn.Linear(hidden_dim2, output_dim),
-			)
-		elif hidden_dim1 != 0:
-			self.layers = nn.Sequential(
-				nn.Linear(input_dim * embedding_dim, hidden_dim1),
-				nn.ReLU(),
-				nn.Dropout(p=dropout),
-				nn.Linear(hidden_dim1, output_dim),
-			)
-		else:
-			self.layers = nn.Sequential(
-				nn.Linear(input_dim * embedding_dim, output_dim),
-			)
-	def forward(self, x):
-		features = self.embedding[x].reshape(x.size()[0], -1)
-		return self.layers(features)
+		self.n_layers = n_layers
+		self.device = device
 
-class GoEmotionsDataset(Dataset):
-    def __init__(self, data: pd.DataFrame, fields: list, numEmotions: int):
-        super(GoEmotionsDataset, self).__init__(
-            [
-                Example.fromlist(list(r), fields) 
-                for i, r in data.iterrows()
-            ], 
-            fields
-        )
-        self.balancedClassWeights = len(data.labels) / (numEmotions * torch.sum(torch.tensor(data.labels),0))
-        #self.posWeights = torch.div((len(data.labels) - torch.sum(torch.tensor(data.labels),0)), 2.5 * torch.sum(torch.tensor(data.labels),0), rounding_mode='floor')
+		self.lstm = nn.LSTM(embedding_dim, hidden_dim, n_layers, dropout=dropout, batch_first=False)
+		self.lin = nn.Linear(hidden_dim, output_dim)
 
-def makeDataset(data, emotions, text_field, labels_field):
-	data.labels = data.labels.apply(lambda x: getYMatrix(x,len(emotions)))
-	return GoEmotionsDataset(
-	    data=data, 
-	    fields=(
-	        ('text', text_field),
-	        ('labels', labels_field)
-	    ),
-	    numEmotions = len(emotions)
-	)
+		self.dropout = nn.Dropout(dropout)
 
-def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights, threshold, device):
+	def forward(self, x, hidden):
+		batch_size = x.size(0)
+		embeds = self.embedding[x]
+	
+		lstm_out, hidden = self.lstm(embeds, hidden)
+
+		lstm_out = lstm_out[-1] #todo take averages
+		
+		out = self.dropout(lstm_out)
+		out = self.lin(out)
+
+		return out, hidden
+
+	def initHidden(self, batch_size):
+		weight = next(self.parameters()).data
+		hidden = (weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(self.device),
+					  weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(self.device))
+		return hidden
+
+def trainNN(model, trainloader, batch_size, devData, devLabels, optimizer, loss_fn, weights, threshold, device):
 	counter = 0
 	train_running_loss = 0.0
 	sigmoid = nn.Sigmoid()
 
 	model.train()
 
+	h = model.initHidden(batch_size)
 	allTargets = []
 	allPredictions = []
 
 	for i, batch in enumerate(trainloader):
 		counter += 1
-		inputs = batch.text.T
+		h = tuple([e.data for e in h])
+		inputs = batch.text
 		labels = batch.labels.float()
 		allTargets.append(labels.detach())
 
 		inputs, labels = inputs.to(device), labels.to(device)
 		optimizer.zero_grad()
-		outputs = model(inputs)
+		outputs, h = model(inputs, h)
+		outputs = outputs.squeeze()
 		allPredictions.append((outputs.cpu() > threshold).int().detach())
 
-		loss = loss_fn(outputs, labels)#, weights=weights)
+		loss = loss_fn(outputs, labels)
 		loss.backward()
 		optimizer.step()
 
@@ -93,7 +66,10 @@ def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights,
 	trainLoss = train_running_loss / counter
 
 	model.eval()
-	devOutput = model(devData.to(device))
+	val_h = model.initHidden(len(devData))
+	val_h = tuple([e.data for e in val_h])
+	devOutput, val_h = model(devData.to(device), val_h)
+	devOutput = devOutput.squeeze()
 	devLoss = loss_fn(devOutput, devLabels.to(device)).item()
 	devOutput = sigmoid(devOutput)
 
@@ -118,22 +94,20 @@ def main():
 
 	#parameters
 	maxSentenceLength = 31
-	embedding_dim = 300
-	epochs = 5
-	input_dim = maxSentenceLength
-	hidden_dim1 = 1000
-	hidden_dim2 = 0
+	embedding_dim = 100
+	epochs = 4
+	hidden_dim = 1000
 	droput = 0
 	output_dim = len(emotions)
 	batch_size = 64
 	threshold = 0.5
 	lr = 1e-3
 	balanced=False
-	filename = "mlp"
+	filename = "rnn"
 
 	print("Loading glove..\n")
-	#rawEmbedding = GloVe(name='twitter.27B', dim=embedding_dim)
-	rawEmbedding = FastText(language='en')
+	rawEmbedding = GloVe(name='twitter.27B', dim=embedding_dim)
+	#rawEmbedding = FastText(language='en')
 
 	#get data
 	train = getTrainSet()
@@ -176,38 +150,39 @@ def main():
 	#pytorch model
 	print("Training NN...")
 	torch.manual_seed(42)
-	mlp = MultilayerPerceptron(vocab.vectors.to(device), embedding_dim, input_dim, hidden_dim1, hidden_dim2, output_dim)
-	mlp.to(device)
+	rnn = UniLatLSTM(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0)
+	rnn.to(device)
 
-	optimizer = torch.optim.Adam(mlp.parameters(), lr=lr)
-	trainloader = Iterator(dataset, batch_size)
+	optimizer = torch.optim.Adam(rnn.parameters(), lr=lr)
 
 	weights = None
 	if balanced:
-		weights = dataset.balancedClassWeights
+		weights = dataset.getBalancedClassWeights()
 	rank_w = torch.zeros(output_dim)
 	total = 0.
 	for i in range(output_dim):
 		total += 1./(i+1)
 		rank_w[i] = total
 
-	loss_fn= nn.BCEWithLogitsLoss(pos_weight= 8*torch.ones(len(emotions)).to(device))#torch.minimum(dataset.posWeights, 8 * torch.ones(len(emotions))))
+	loss_fn= nn.BCEWithLogitsLoss(pos_weight= 8*torch.ones(len(emotions)).to(device))
 	#loss_fn = wlsep
 	#loss_fn = lambda x,y,weights=weights : warp(x,y,rank_w,weights=weights)
 
+	trainloader = Iterator(dataset, batch_size)
+
 	#train model
-	mlp.train()
+	rnn.train()
 	trainLoss = []
 	devLoss = []
 	trainF1 = []
 	devF1 = []
 	devbatch = next(iter(Iterator(devset, len(devset))))
-	devData = devbatch.text.T
+	devData = devbatch.text
 	devLabels = devbatch.labels.float()
 
 	for epoch in range(epochs):
 		print("Epoch:", epoch)
-		epoch_loss, dev_loss, f1_train, f1_dev = trainNN(mlp, trainloader, devData, devLabels, optimizer, loss_fn, weights, threshold, device)
+		epoch_loss, dev_loss, f1_train, f1_dev = trainNN(rnn, trainloader, batch_size, devData, devLabels, optimizer, loss_fn, weights, threshold, device)
 		trainLoss.append(epoch_loss)
 		devLoss.append(dev_loss)
 		trainF1.append(f1_train)
@@ -233,18 +208,20 @@ def main():
 	ax2.plot(devF1, color='r', label='Dev Macro F1')
 	ax2.set(xlabel='Epochs', ylabel="Macro F1")
 	ax2.legend()
-	fig.savefig('plots/learningcurve_rnn.png')
+	fig.savefig('plots/learningcurve.png')
 
 	#Testing metrics
-	mlp.eval()
+	rnn.eval()
 	sigmoid = nn.Sigmoid()
 	testbatch = devbatch = next(iter(Iterator(testset, len(devset))))
-	data = testbatch.text.T
+	data = testbatch.text
 	labels = testbatch.labels.float()
+	h = model.initHidden(len(data))
+	h = tuple([each.data for each in h])
 
-	outputs = mlp(data.to(device))
-	outputs = sigmoid(outputs)
-	prediction = (outputs > threshold).int().cpu()
+	outputs, h = rnn(data.to(device), h)
+	outputs = sigmoid(outputs.squeeze())
+	prediction = (outputs > threshold).int()
 
 	accuracy = accuracy_score(labels, prediction)
 	print("Subset Accuracy:", accuracy)
@@ -261,7 +238,7 @@ def main():
 	results.to_csv("tables/" + filename + "_results.csv")
 
 	#confusion matrix
-	multilabel_confusion_matrix(np.array(labels), outputs.cpu().detach().numpy(), emotions, top_x=3, filename=filename)
+	multilabel_confusion_matrix(np.array(labels), outputs.detach().numpy(), emotions, top_x=3, filename=filename)
 
 if __name__ == "__main__":
 	main()
