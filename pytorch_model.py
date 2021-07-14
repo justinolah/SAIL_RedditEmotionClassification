@@ -238,7 +238,7 @@ def main():
 	#Testing metrics
 	mlp.eval()
 	sigmoid = nn.Sigmoid()
-	testbatch = devbatch = next(iter(Iterator(testset, len(devset))))
+	testbatch = next(iter(Iterator(testset, len(devset))))
 	data = testbatch.text.T
 	labels = testbatch.labels.float()
 
@@ -249,6 +249,7 @@ def main():
 	accuracy = accuracy_score(labels, prediction)
 	print("Subset Accuracy:", accuracy)
 	print(classification_report(labels, prediction, target_names=emotions, zero_division=0, output_dict=False))
+	print("Best Dev F1:", devF1[bestEpochDevF1], "at epoch", bestEpochDevF1, "\n")
 	report = classification_report(labels, prediction, target_names=emotions, zero_division=0, output_dict=True)
 
 	#export resuls to csv

@@ -40,12 +40,12 @@ def trainNN(model, trainloader, batch_size, devData, devLabels, optimizer, loss_
 
 	model.train()
 
-	h = model.initHidden(batch_size)
 	allTargets = []
 	allPredictions = []
 
 	for i, batch in enumerate(trainloader):
 		counter += 1
+		h = model.initHidden(len(batch))
 		h = tuple([e.data for e in h])
 		inputs = batch.text
 		labels = batch.labels.float()
@@ -66,7 +66,7 @@ def trainNN(model, trainloader, batch_size, devData, devLabels, optimizer, loss_
 	trainLoss = train_running_loss / counter
 
 	model.eval()
-	val_h = model.initHidden(len(devData))
+	val_h = model.initHidden(len(devData[0]))
 	val_h = tuple([e.data for e in val_h])
 	devOutput, val_h = model(devData.to(device), val_h)
 	devOutput = devOutput.squeeze()
@@ -95,11 +95,11 @@ def main():
 	#parameters
 	maxSentenceLength = 31
 	embedding_dim = 100
-	epochs = 4
-	hidden_dim = 1000
+	epochs = 5
+	hidden_dim = 100
 	droput = 0
 	output_dim = len(emotions)
-	batch_size = 64
+	batch_size = 512
 	threshold = 0.5
 	lr = 1e-3
 	balanced=False
@@ -201,7 +201,7 @@ def main():
 	fig, (ax1, ax2) = plt.subplots(2, figsize=(11, 9))
 	ax1.plot(trainLoss, color='b', label='Training loss')
 	ax1.plot(devLoss, color='r', label='Dev loss')
-	fig.suptitle(f"{hidden_dim1}X{hidden_dim2}, LR:{lr}, BS:{batch_size}, Embedding Size: {embedding_dim}")
+	fig.suptitle(f"Hidden:{hidden_dim}, LR:{lr}, BS:{batch_size}, Embedding Size: {embedding_dim}")
 	ax1.set(xlabel='Epochs', ylabel="Loss")
 	ax1.legend()
 	ax2.plot(trainF1, color='b', label='Training Macro F1')
@@ -213,10 +213,10 @@ def main():
 	#Testing metrics
 	rnn.eval()
 	sigmoid = nn.Sigmoid()
-	testbatch = devbatch = next(iter(Iterator(testset, len(devset))))
+	testbatch = next(iter(Iterator(testset, len(devset))))
 	data = testbatch.text
 	labels = testbatch.labels.float()
-	h = model.initHidden(len(data))
+	h = rnn.initHidden(len(devset))
 	h = tuple([each.data for each in h])
 
 	outputs, h = rnn(data.to(device), h)
@@ -226,6 +226,7 @@ def main():
 	accuracy = accuracy_score(labels, prediction)
 	print("Subset Accuracy:", accuracy)
 	print(classification_report(labels, prediction, target_names=emotions, zero_division=0, output_dict=False))
+	print("Best Dev F1:", devF1[bestEpochDevF1], "at epoch", bestEpochDevF1, "\n")
 	report = classification_report(labels, prediction, target_names=emotions, zero_division=0, output_dict=True)
 
 	#export resuls to csv
