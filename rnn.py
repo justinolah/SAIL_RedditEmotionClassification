@@ -221,7 +221,7 @@ def main():
 
 	outputs, h = rnn(data.to(device), h)
 	outputs = sigmoid(outputs.squeeze())
-	prediction = (outputs > threshold).int()
+	prediction = (outputs > threshold).int().cpu()
 
 	accuracy = accuracy_score(labels, prediction)
 	print("Subset Accuracy:", accuracy)
