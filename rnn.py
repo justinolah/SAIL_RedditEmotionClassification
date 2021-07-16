@@ -14,16 +14,39 @@ class UniLatLSTM(nn.Module):
 		self.lin = nn.Linear(hidden_dim, output_dim)
 
 		self.dropout = nn.Dropout(dropout)
+		self.prin = True
 
 	def forward(self, x, lengths, hidden):
 		batch_size = x.size(0)
 		embeds = self.embedding[x]
+		if self.prin:
+			print(embeds)
+			print(lengths)
+
 		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
+
+		if self.prin:
+			o, l = pad_packed_sequence(embeds)
+			print(o)
+			print(l)
+			self.prin = False
+
 	
 		lstm_out, hidden = self.lstm(embeds, hidden)
+
+		if self.prin:
+			print(lstm_out)
+
 		lstm_out, lengths = pad_packed_sequence(lstm_out)
 
-		lstm_out = lstm_out[-1] #todo take averages
+		if self.prin:
+			print(lstm_out)
+			print(lstm_out.size())
+			print(lstm_out[-1])
+			print(lstm_out[-1].size())
+			self.prin = False
+
+		lstm_out = lstm_out[-1]
 		
 		out = self.dropout(lstm_out)
 		out = self.lin(out)
@@ -97,8 +120,8 @@ def main():
 
 	#parameters
 	maxSentenceLength = 12
-	embedding_dim = 200
-	epochs = 5
+	embedding_dim = 100
+	epochs = 7
 	hidden_dim = 1000
 	droput = 0
 	output_dim = len(emotions)
@@ -132,6 +155,7 @@ def main():
 	    tokenize='basic_english', 
 	    fix_length=maxSentenceLength,
 	    lower=True,
+	    pad_first=True,
 	    include_lengths=True,
 	)
 
