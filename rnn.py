@@ -21,9 +21,7 @@ class UniLatLSTM(nn.Module):
 		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
 	
 		lstm_out, hidden = self.lstm(embeds, hidden)
-		print(lstm_out)
 		lstm_out, lengths = pad_packed_sequence(lstm_out)
-		print(lstm_out)
 
 		lstm_out = lstm_out[-1] #todo take averages
 		
@@ -73,7 +71,7 @@ def trainNN(model, trainloader, batch_size, devData, devLengths, devLabels, opti
 	model.eval()
 	val_h = model.initHidden(len(devData[0]))
 	val_h = tuple([e.data for e in val_h])
-	devOutput, val_h = model(devData.to(device), devLengths.to(device), val_h)
+	devOutput, val_h = model(devData.to(device), devLengths, val_h)
 	devOutput = devOutput.squeeze()
 	devLoss = loss_fn(devOutput, devLabels.to(device)).item()
 	devOutput = sigmoid(devOutput)
@@ -128,12 +126,6 @@ def main():
 	train = train[train.text.str.len() > 0]
 	test = test[test.text.str.len() > 0]
 	dev = dev[dev.text.str.len() > 0]
-
-	print(train)
-
-	print(len(train))
-	print(len(test))
-	print(len(dev))
 
 	text_field = Field(
 	    sequential=True,
