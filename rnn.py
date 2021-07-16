@@ -1,4 +1,5 @@
 from pytorch_model import *
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 class UniLatLSTM(nn.Module):
 	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0):
@@ -14,11 +15,15 @@ class UniLatLSTM(nn.Module):
 
 		self.dropout = nn.Dropout(dropout)
 
-	def forward(self, x, hidden):
+	def forward(self, x, lengths, hidden):
 		batch_size = x.size(0)
 		embeds = self.embedding[x]
+		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
 	
 		lstm_out, hidden = self.lstm(embeds, hidden)
+		print(lstm_out)
+		lstm_out, lengths = pad_packed_sequence(lstm_out)
+		print(lstm_out)
 
 		lstm_out = lstm_out[-1] #todo take averages
 		
@@ -33,7 +38,7 @@ class UniLatLSTM(nn.Module):
 					  weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(self.device))
 		return hidden
 
-def trainNN(model, trainloader, batch_size, devData, devLabels, optimizer, loss_fn, weights, threshold, device):
+def trainNN(model, trainloader, batch_size, devData, devLengths, devLabels, optimizer, loss_fn, weights, threshold, device):
 	counter = 0
 	train_running_loss = 0.0
 	sigmoid = nn.Sigmoid()
@@ -47,13 +52,13 @@ def trainNN(model, trainloader, batch_size, devData, devLabels, optimizer, loss_
 		counter += 1
 		h = model.initHidden(len(batch))
 		h = tuple([e.data for e in h])
-		inputs = batch.text
+		inputs, lengths = batch.text
 		labels = batch.labels.float()
 		allTargets.append(labels.detach())
 
 		inputs, labels = inputs.to(device), labels.to(device)
 		optimizer.zero_grad()
-		outputs, h = model(inputs, h)
+		outputs, h = model(inputs, lengths, h)
 		outputs = outputs.squeeze()
 		allPredictions.append((outputs.cpu() > threshold).int().detach())
 
@@ -68,7 +73,7 @@ def trainNN(model, trainloader, batch_size, devData, devLabels, optimizer, loss_
 	model.eval()
 	val_h = model.initHidden(len(devData[0]))
 	val_h = tuple([e.data for e in val_h])
-	devOutput, val_h = model(devData.to(device), val_h)
+	devOutput, val_h = model(devData.to(device), devLengths.to(device), val_h)
 	devOutput = devOutput.squeeze()
 	devLoss = loss_fn(devOutput, devLabels.to(device)).item()
 	devOutput = sigmoid(devOutput)
@@ -93,13 +98,13 @@ def main():
 		device = torch.device("cpu")
 
 	#parameters
-	maxSentenceLength = 31
-	embedding_dim = 100
+	maxSentenceLength = 12
+	embedding_dim = 200
 	epochs = 5
-	hidden_dim = 100
+	hidden_dim = 1000
 	droput = 0
 	output_dim = len(emotions)
-	batch_size = 512
+	batch_size = 256
 	threshold = 0.5
 	lr = 1e-3
 	balanced=False
@@ -119,14 +124,24 @@ def main():
 	test.text= test.text.apply(cleanTextForEmbedding)
 	dev.text = dev.text.apply(cleanTextForEmbedding)
 
+	#remove empty sentences
+	train = train[train.text.str.len() > 0]
+	test = test[test.text.str.len() > 0]
+	dev = dev[dev.text.str.len() > 0]
+
+	print(train)
+
+	print(len(train))
+	print(len(test))
+	print(len(dev))
+
 	text_field = Field(
 	    sequential=True,
 	    tokenize='basic_english', 
 	    fix_length=maxSentenceLength,
-	    lower=True
+	    lower=True,
+	    include_lengths=True,
 	)
-
-	labels_field = Field(sequential=False, use_vocab=False)
 
 	#build vocab
 	preprocessed_text = train.text.apply(
@@ -143,9 +158,9 @@ def main():
 	vocab = text_field.vocab
 
 	#Make datasets
-	dataset = makeDataset(train, emotions, text_field, labels_field)
-	testset = makeDataset(test, emotions, text_field, labels_field)
-	devset = makeDataset(dev, emotions, text_field, labels_field)
+	dataset = makeDataset(train, emotions, text_field)
+	testset = makeDataset(test, emotions, text_field)
+	devset = makeDataset(dev, emotions, text_field)
 
 	#pytorch model
 	print("Training NN...")
@@ -177,12 +192,12 @@ def main():
 	trainF1 = []
 	devF1 = []
 	devbatch = next(iter(Iterator(devset, len(devset))))
-	devData = devbatch.text
+	devData, devLengths = devbatch.text
 	devLabels = devbatch.labels.float()
 
 	for epoch in range(epochs):
 		print("Epoch:", epoch)
-		epoch_loss, dev_loss, f1_train, f1_dev = trainNN(rnn, trainloader, batch_size, devData, devLabels, optimizer, loss_fn, weights, threshold, device)
+		epoch_loss, dev_loss, f1_train, f1_dev = trainNN(rnn, trainloader, batch_size, devData, devLengths, devLabels, optimizer, loss_fn, weights, threshold, device)
 		trainLoss.append(epoch_loss)
 		devLoss.append(dev_loss)
 		trainF1.append(f1_train)
@@ -208,18 +223,18 @@ def main():
 	ax2.plot(devF1, color='r', label='Dev Macro F1')
 	ax2.set(xlabel='Epochs', ylabel="Macro F1")
 	ax2.legend()
-	fig.savefig('plots/learningcurve.png')
+	fig.savefig('plots/learningcurve_rnn.png')
 
 	#Testing metrics
 	rnn.eval()
 	sigmoid = nn.Sigmoid()
 	testbatch = next(iter(Iterator(testset, len(devset))))
-	data = testbatch.text
+	data, lengths = testbatch.text
 	labels = testbatch.labels.float()
 	h = rnn.initHidden(len(devset))
 	h = tuple([each.data for each in h])
 
-	outputs, h = rnn(data.to(device), h)
+	outputs, h = rnn(data.to(device), lengths, h)
 	outputs = sigmoid(outputs.squeeze())
 	prediction = (outputs > threshold).int().cpu()
 

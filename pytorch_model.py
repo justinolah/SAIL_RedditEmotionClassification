@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 import torchtext
 from torchtext.vocab import GloVe, FastText
 from torchtext.data import Field, Dataset, Example, Iterator
+from torchtext.data.utils import get_tokenizer
 import pandas as pd
 from sklearn.metrics import f1_score
 from helpers import *
@@ -17,19 +18,19 @@ class MultilayerPerceptron(nn.Module):
 		self.embedding = embedding
 		if hidden_dim2 != 0:
 			self.layers = nn.Sequential(
+				nn.Dropout(p=dropout),
 				nn.Linear(input_dim * embedding_dim, hidden_dim1),
 				nn.ReLU(),
 				nn.Dropout(p=dropout),
 				nn.Linear(hidden_dim1, hidden_dim2),
 				nn.ReLU(),
-				nn.Dropout(p=dropout),
 				nn.Linear(hidden_dim2, output_dim),
 			)
 		elif hidden_dim1 != 0:
 			self.layers = nn.Sequential(
+				nn.Dropout(p=dropout),
 				nn.Linear(input_dim * embedding_dim, hidden_dim1),
 				nn.ReLU(),
-				nn.Dropout(p=dropout),
 				nn.Linear(hidden_dim1, output_dim),
 			)
 		else:
@@ -49,11 +50,12 @@ class GoEmotionsDataset(Dataset):
             ], 
             fields
         )
-        self.balancedClassWeights = len(data.labels) / (numEmotions * torch.sum(torch.tensor(data.labels),0))
+        #self.balancedClassWeights = len(data.labels) / (numEmotions * torch.sum(torch.tensor(data.labels),0))
         #self.posWeights = torch.div((len(data.labels) - torch.sum(torch.tensor(data.labels),0)), 2.5 * torch.sum(torch.tensor(data.labels),0), rounding_mode='floor')
 
-def makeDataset(data, emotions, text_field, labels_field):
+def makeDataset(data, emotions, text_field):
 	data.labels = data.labels.apply(lambda x: getYMatrix(x,len(emotions)))
+	labels_field = Field(sequential=False, use_vocab=False)
 	return GoEmotionsDataset(
 	    data=data, 
 	    fields=(
@@ -118,12 +120,12 @@ def main():
 
 	#parameters
 	maxSentenceLength = 31
-	embedding_dim = 300
-	epochs = 5
+	embedding_dim = 100
+	epochs = 3
 	input_dim = maxSentenceLength
 	hidden_dim1 = 1000
 	hidden_dim2 = 0
-	droput = 0
+	droput = 0.5
 	output_dim = len(emotions)
 	batch_size = 64
 	threshold = 0.5
@@ -132,8 +134,8 @@ def main():
 	filename = "mlp"
 
 	print("Loading glove..\n")
-	#rawEmbedding = GloVe(name='twitter.27B', dim=embedding_dim)
-	rawEmbedding = FastText(language='en')
+	rawEmbedding = GloVe(name='twitter.27B', dim=embedding_dim)
+	#rawEmbedding = FastText(language='en')
 
 	#get data
 	train = getTrainSet()
@@ -152,8 +154,6 @@ def main():
 	    lower=True
 	)
 
-	labels_field = Field(sequential=False, use_vocab=False)
-
 	#build vocab
 	preprocessed_text = train.text.apply(
     	lambda x: text_field.preprocess(x)
@@ -169,9 +169,9 @@ def main():
 	vocab = text_field.vocab
 
 	#Make datasets
-	dataset = makeDataset(train, emotions, text_field, labels_field)
-	testset = makeDataset(test, emotions, text_field, labels_field)
-	devset = makeDataset(dev, emotions, text_field, labels_field)
+	dataset = makeDataset(train, emotions, text_field)
+	testset = makeDataset(test, emotions, text_field)
+	devset = makeDataset(dev, emotions, text_field)
 
 	#pytorch model
 	print("Training NN...")
@@ -233,7 +233,7 @@ def main():
 	ax2.plot(devF1, color='r', label='Dev Macro F1')
 	ax2.set(xlabel='Epochs', ylabel="Macro F1")
 	ax2.legend()
-	fig.savefig('plots/learningcurve_rnn.png')
+	fig.savefig('plots/learningcurve.png')
 
 	#Testing metrics
 	mlp.eval()
