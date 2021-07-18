@@ -181,6 +181,7 @@ def main():
 	#loss_fn = lambda x,y,weights=weights : warp(x,y,rank_w,weights=weights)
 
 	trainloader = BucketIterator(dataset, batch_size, sort_key=lambda x: len(x.text), repeat=True, shuffle=True, sort_within_batch=True)
+	#trainloader = BucketIterator(dataset, batch_size)
 
 	#train model
 	rnn.train()
