@@ -14,49 +14,21 @@ class UniLatLSTM(nn.Module):
 		self.lin = nn.Linear(hidden_dim, output_dim)
 
 		self.dropout = nn.Dropout(dropout)
-		self.prin = False
 
 	def forward(self, x, lengths, hidden):
 		batch_size = x.size(0)
 		embeds = self.embedding[x]
-		if self.prin:
-			print(embeds)
-			print(lengths)
-
 		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
-
-		if self.prin:
-			o, l = pad_packed_sequence(embeds)
-			print(o)
-			print(l)
-			self.prin = False
-
 	
 		lstm_out, hidden = self.lstm(embeds, hidden)
-
-		if self.prin:
-			print(lstm_out)
-
 		lstm_out, lengths = pad_packed_sequence(lstm_out)
-
-		if self.prin:
-			print(lstm_out)
-			print(lstm_out.size())
-			print(lstm_out[-1])
-			print(lstm_out[-1].size())
-			self.prin = False
-
-
-		#[12, 256, 1000]
 
 		out = torch.zeros_like(lstm_out[0])
 
 		for i, length in enumerate(lengths):
 			out[i] = lstm_out[length-1,i]
 
-		#lstm_out = lstm_out[-1] #i want index from each length in lengths
-
-		#[256, 1000]
+		#lstm_out = lstm_out[-1]
 		
 		out = self.dropout(out)
 		out = self.lin(out)
@@ -129,7 +101,7 @@ def main():
 		device = torch.device("cpu")
 
 	#parameters
-	maxSentenceLength = 12
+	maxSentenceLength = 31
 	embedding_dim = 100
 	epochs = 7
 	hidden_dim = 1000
@@ -165,7 +137,6 @@ def main():
 	    tokenize='basic_english', 
 	    fix_length=maxSentenceLength,
 	    lower=True,
-	    #pad_first=True,
 	    include_lengths=True,
 	)
 
@@ -209,7 +180,7 @@ def main():
 	#loss_fn = wlsep
 	#loss_fn = lambda x,y,weights=weights : warp(x,y,rank_w,weights=weights)
 
-	trainloader = Iterator(dataset, batch_size)
+	trainloader = BucketIterator(dataset, batch_size, sort_key=lambda x: len(x.text), repeat=True, shuffle=True, sort_within_batch=True)
 
 	#train model
 	rnn.train()

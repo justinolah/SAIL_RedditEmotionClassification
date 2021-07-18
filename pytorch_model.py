@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import torchtext
 from torchtext.vocab import GloVe, FastText
-from torchtext.data import Field, Dataset, Example, Iterator
+from torchtext.data import Field, Dataset, Example, Iterator, BucketIterator
 from torchtext.data.utils import get_tokenizer
 import pandas as pd
 from sklearn.metrics import f1_score
