@@ -14,7 +14,7 @@ class UniLatLSTM(nn.Module):
 		self.lin = nn.Linear(hidden_dim, output_dim)
 
 		self.dropout = nn.Dropout(dropout)
-		self.prin = True
+		self.prin = False
 
 	def forward(self, x, lengths, hidden):
 		batch_size = x.size(0)
@@ -46,9 +46,19 @@ class UniLatLSTM(nn.Module):
 			print(lstm_out[-1].size())
 			self.prin = False
 
-		lstm_out = lstm_out[-1]
+
+		#[12, 256, 1000]
+
+		out = torch.zeros_like(lstm_out[0])
+
+		for i, length in enumerate(lengths):
+			out[i] = lstm_out[length-1,i]
+
+		#lstm_out = lstm_out[-1] #i want index from each length in lengths
+
+		#[256, 1000]
 		
-		out = self.dropout(lstm_out)
+		out = self.dropout(out)
 		out = self.lin(out)
 
 		return out, hidden
@@ -155,7 +165,7 @@ def main():
 	    tokenize='basic_english', 
 	    fix_length=maxSentenceLength,
 	    lower=True,
-	    pad_first=True,
+	    #pad_first=True,
 	    include_lengths=True,
 	)
 
