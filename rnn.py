@@ -79,7 +79,7 @@ class BiLSTM(nn.Module):
 					  weight.new(self.n_layers *2, batch_size, self.hidden_dim).zero_().to(self.device))
 		return hidden
 
-def trainNN(model, trainloader, batch_size, devData, devLengths, devLabels, optimizer, loss_fn, weights, threshold, device):
+def trainNN(model, trainloader, batch_size, devData, devLengths, devLabels, optimizer, loss_fn, threshold, device):
 	counter = 0
 	train_running_loss = 0.0
 	sigmoid = nn.Sigmoid()
@@ -140,15 +140,15 @@ def main():
 
 	#parameters
 	maxSentenceLength = 31
-	embedding_dim = 100
+	embedding_dim = 200
 	epochs = 7
-	hidden_dim = 1000
-	droput = 0
+	hidden_dim = 250
+	droput = 0.5
+	weight_decay = 0.01
 	output_dim = len(emotions)
 	batch_size = 256
 	threshold = 0.5
-	lr = 1e-3
-	balanced=False
+	lr = 1e-2
 	filename = "rnn"
 
 	print("Loading glove..\n")
@@ -205,21 +205,11 @@ def main():
 
 	optimizer = torch.optim.Adam(rnn.parameters(), lr=lr)
 
-	weights = None
-	if balanced:
-		weights = dataset.getBalancedClassWeights()
-	rank_w = torch.zeros(output_dim)
-	total = 0.
-	for i in range(output_dim):
-		total += 1./(i+1)
-		rank_w[i] = total
-
 	loss_fn= nn.BCEWithLogitsLoss(pos_weight= 8*torch.ones(len(emotions)).to(device))
 	#loss_fn = wlsep
-	#loss_fn = lambda x,y,weights=weights : warp(x,y,rank_w,weights=weights)
 
-	trainloader = BucketIterator(dataset, batch_size, sort_key=lambda x: len(x.text), repeat=True, shuffle=True, sort_within_batch=True)
-	#trainloader = Iterator(dataset, batch_size)
+	#trainloader = BucketIterator(dataset, batch_size, sort_key=lambda x: len(x.text), repeat=True, shuffle=True, sort_within_batch=True) #runs too slow for some reason
+	trainloader = Iterator(dataset, batch_size)
 
 	#train model
 	rnn.train()
@@ -233,7 +223,7 @@ def main():
 
 	for epoch in range(epochs):
 		print("Epoch:", epoch)
-		epoch_loss, dev_loss, f1_train, f1_dev = trainNN(rnn, trainloader, batch_size, devData, devLengths, devLabels, optimizer, loss_fn, weights, threshold, device)
+		epoch_loss, dev_loss, f1_train, f1_dev = trainNN(rnn, trainloader, batch_size, devData, devLengths, devLabels, optimizer, loss_fn, threshold, device)
 		trainLoss.append(epoch_loss)
 		devLoss.append(dev_loss)
 		trainF1.append(f1_train)
