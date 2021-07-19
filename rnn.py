@@ -144,7 +144,8 @@ def main():
 	epochs = 7
 	hidden_dim = 250
 	droput = 0.5
-	weight_decay = 0.01
+	weight_decay = 0.0001
+	lr_decay = 0.8
 	output_dim = len(emotions)
 	batch_size = 256
 	threshold = 0.5
@@ -232,6 +233,9 @@ def main():
 		print("Dev Loss:", dev_loss)
 		print("Training Macro F1:", f1_train)
 		print("Dev Macro F1:", f1_dev, "\n")
+
+		lr = lr * lr_decay
+		optimizer = torch.optim.Adam(rnn.parameters(), lr=lr, weight_decay=weight_decay)
 
 	print("Training complete\n")
 
