@@ -61,7 +61,7 @@ class UniGRU(nn.Module):
 		hidden = self.initHidden(batch_size)
 	
 		gru_out, hidden = self.gru(embeds, hidden)
-		gru_out, lengths = pad_packed_sequence(lstm_out)
+		gru_out, lengths = pad_packed_sequence(gru_out)
 
 		out = torch.zeros_like(gru_out[0])
 
@@ -134,7 +134,7 @@ class BiGRU(nn.Module):
 		hidden = self.initHidden(batch_size)
 	
 		gru_out, hidden = self.gru(embeds, hidden)
-		gru_out, lengths = pad_packed_sequence(lstm_out)
+		gru_out, lengths = pad_packed_sequence(gru_out)
 
 		out = torch.zeros_like(gru_out[0])
 
