@@ -57,6 +57,8 @@ class UniGRU(nn.Module):
 		batch_size = x.size(0)
 		embeds = self.embedding[x]
 		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
+
+		hidden = self.initHidden(batch_size)
 	
 		gru_out, hidden = self.gru(embeds, hidden)
 		gru_out, lengths = pad_packed_sequence(lstm_out)
@@ -128,6 +130,8 @@ class BiGRU(nn.Module):
 		batch_size = x.size(0)
 		embeds = self.embedding[x]
 		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
+
+		hidden = self.initHidden(batch_size)
 	
 		gru_out, hidden = self.gru(embeds, hidden)
 		gru_out, lengths = pad_packed_sequence(lstm_out)
