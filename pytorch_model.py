@@ -65,7 +65,7 @@ def makeDataset(data, emotions, text_field):
 	    numEmotions = len(emotions)
 	)
 
-def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights, threshold, device):
+def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, threshold, device):
 	counter = 0
 	train_running_loss = 0.0
 	sigmoid = nn.Sigmoid()
@@ -86,7 +86,7 @@ def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, weights,
 		outputs = model(inputs)
 		allPredictions.append((outputs.cpu() > threshold).int().detach())
 
-		loss = loss_fn(outputs, labels)#, weights=weights)
+		loss = loss_fn(outputs, labels)
 		loss.backward()
 		optimizer.step()
 
@@ -120,17 +120,18 @@ def main():
 
 	#parameters
 	maxSentenceLength = 31
-	embedding_dim = 100
+	embedding_dim = 200
 	epochs = 3
 	input_dim = maxSentenceLength
 	hidden_dim1 = 1000
 	hidden_dim2 = 0
 	droput = 0.5
+	weight_decay = 0.0001
+	lr_decay = 0.95
 	output_dim = len(emotions)
 	batch_size = 64
 	threshold = 0.5
 	lr = 1e-3
-	balanced=False
 	filename = "mlp"
 
 	print("Loading glove..\n")
@@ -179,7 +180,7 @@ def main():
 	mlp = MultilayerPerceptron(vocab.vectors.to(device), embedding_dim, input_dim, hidden_dim1, hidden_dim2, output_dim)
 	mlp.to(device)
 
-	optimizer = torch.optim.Adam(mlp.parameters(), lr=lr)
+	optimizer = torch.optim.Adam(mlp.parameters(), lr=lr, weight_decay=weight_decay)
 	trainloader = Iterator(dataset, batch_size)
 
 	weights = None
@@ -191,7 +192,7 @@ def main():
 		total += 1./(i+1)
 		rank_w[i] = total
 
-	loss_fn= nn.BCEWithLogitsLoss(pos_weight= 8*torch.ones(len(emotions)).to(device))#torch.minimum(dataset.posWeights, 8 * torch.ones(len(emotions))))
+	loss_fn= nn.BCEWithLogitsLoss(pos_weight= 8*torch.ones(len(emotions)).to(device))
 	#loss_fn = wlsep
 	#loss_fn = lambda x,y,weights=weights : warp(x,y,rank_w,weights=weights)
 
@@ -207,7 +208,7 @@ def main():
 
 	for epoch in range(epochs):
 		print("Epoch:", epoch)
-		epoch_loss, dev_loss, f1_train, f1_dev = trainNN(mlp, trainloader, devData, devLabels, optimizer, loss_fn, weights, threshold, device)
+		epoch_loss, dev_loss, f1_train, f1_dev = trainNN(mlp, trainloader, devData, devLabels, optimizer, loss_fn, threshold, device)
 		trainLoss.append(epoch_loss)
 		devLoss.append(dev_loss)
 		trainF1.append(f1_train)
@@ -216,6 +217,9 @@ def main():
 		print("Dev Loss:", dev_loss)
 		print("Training Macro F1:", f1_train)
 		print("Dev Macro F1:", f1_dev, "\n")
+
+		lr *= lr_decay
+		optimizer = torch.optim.Adam(rnn.parameters(), lr=lr, weight_decay=weight_decay)
 
 	print("Training complete\n")
 

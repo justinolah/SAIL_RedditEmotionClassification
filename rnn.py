@@ -234,7 +234,7 @@ def main():
 		print("Training Macro F1:", f1_train)
 		print("Dev Macro F1:", f1_dev, "\n")
 
-		lr = lr * lr_decay
+		lr *= lr_decay
 		optimizer = torch.optim.Adam(rnn.parameters(), lr=lr, weight_decay=weight_decay)
 
 	print("Training complete\n")
