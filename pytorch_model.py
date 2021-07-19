@@ -132,6 +132,7 @@ def main():
 	batch_size = 64
 	threshold = 0.5
 	lr = 1e-3
+	balanced=False
 	filename = "mlp"
 
 	print("Loading glove..\n")
