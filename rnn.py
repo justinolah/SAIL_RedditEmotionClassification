@@ -1,9 +1,9 @@
 from pytorch_model import *
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-class UniLatLSTM(nn.Module):
+class UniLSTM(nn.Module):
 	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0):
-		super(UniLatLSTM, self).__init__()
+		super(UniLSTM, self).__init__()
 		self.hidden_dim = hidden_dim
 		self.output_dim = output_dim
 		self.embedding = embedding
@@ -39,6 +39,44 @@ class UniLatLSTM(nn.Module):
 		weight = next(self.parameters()).data
 		hidden = (weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(self.device),
 					  weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(self.device))
+		return hidden
+
+class BiLSTM(nn.Module):
+	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0):
+		super(BiLSTM, self).__init__()
+		self.hidden_dim = hidden_dim
+		self.output_dim = output_dim
+		self.embedding = embedding
+		self.n_layers = n_layers
+		self.device = device
+
+		self.lstm = nn.LSTM(embedding_dim, hidden_dim, n_layers, dropout=dropout, bidirectional=True, batch_first=False)
+		self.lin = nn.Linear(hidden_dim * 2, output_dim)
+
+		self.dropout = nn.Dropout(dropout)
+
+	def forward(self, x, lengths, hidden):
+		batch_size = x.size(0)
+		embeds = self.embedding[x]
+		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
+	
+		lstm_out, hidden = self.lstm(embeds, hidden)
+		lstm_out, lengths = pad_packed_sequence(lstm_out)
+
+		out = torch.zeros_like(lstm_out[0])
+
+		for i, length in enumerate(lengths):
+			out[i] = lstm_out[length-1,i]
+		
+		out = self.dropout(out)
+		out = self.lin(out)
+
+		return out, hidden
+
+	def initHidden(self, batch_size):
+		weight = next(self.parameters()).data
+		hidden = (weight.new(self.n_layers * 2, batch_size, self.hidden_dim).zero_().to(self.device),
+					  weight.new(self.n_layers *2, batch_size, self.hidden_dim).zero_().to(self.device))
 		return hidden
 
 def trainNN(model, trainloader, batch_size, devData, devLengths, devLabels, optimizer, loss_fn, weights, threshold, device):
@@ -162,7 +200,7 @@ def main():
 	#pytorch model
 	print("Training NN...")
 	torch.manual_seed(42)
-	rnn = UniLatLSTM(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0)
+	rnn = BiLSTM(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0)
 	rnn.to(device)
 
 	optimizer = torch.optim.Adam(rnn.parameters(), lr=lr)
