@@ -36,10 +36,43 @@ class UniLSTM(nn.Module):
 		return out, hidden
 
 	def initHidden(self, batch_size):
-		weight = next(self.parameters()).data
-		hidden = (weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(self.device),
-					  weight.new(self.n_layers, batch_size, self.hidden_dim).zero_().to(self.device))
-		return hidden
+		return (torch.zeros((self.n_layers, batch_size, self.hidden_dim), requires_grad=True).to(self.device),
+			torch.zeros((self.n_layers, batch_size, self.hidden_dim), requires_grad=True).to(self.device))
+
+class UniGRU(nn.Module):
+	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0):
+		super(UniGRU, self).__init__()
+		self.hidden_dim = hidden_dim
+		self.output_dim = output_dim
+		self.embedding = embedding
+		self.n_layers = n_layers
+		self.device = device
+
+		self.gru = nn.GRU(embedding_dim, hidden_dim, n_layers, dropout=dropout, batch_first=False)
+		self.lin = nn.Linear(hidden_dim, output_dim)
+
+		self.dropout = nn.Dropout(dropout)
+
+	def forward(self, x, lengths, hidden):
+		batch_size = x.size(0)
+		embeds = self.embedding[x]
+		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
+	
+		gru_out, hidden = self.gru(embeds, hidden)
+		gru_out, lengths = pad_packed_sequence(lstm_out)
+
+		out = torch.zeros_like(gru_out[0])
+
+		for i, length in enumerate(lengths):
+			out[i] = gru_out[length-1,i]
+		
+		out = self.dropout(out)
+		out = self.lin(out)
+
+		return out, hidden
+
+	def initHidden(self, batch_size):
+		return torch.zeros((self.n_layers, batch_size, self.hidden_dim), requires_grad=True).to(self.device)
 
 class BiLSTM(nn.Module):
 	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0):
@@ -74,10 +107,43 @@ class BiLSTM(nn.Module):
 		return out, hidden
 
 	def initHidden(self, batch_size):
-		weight = next(self.parameters()).data
-		hidden = (weight.new(self.n_layers * 2, batch_size, self.hidden_dim).zero_().to(self.device),
-					  weight.new(self.n_layers *2, batch_size, self.hidden_dim).zero_().to(self.device))
-		return hidden
+		return (torch.zeros((2*self.n_layers, batch_size, self.hidden_dim), requires_grad=True).to(self.device),
+			torch.zeros((2*self.n_layers, batch_size, self.hidden_dim), requires_grad=True).to(self.device))
+
+class BiGRU(nn.Module):
+	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0):
+		super(BiGRU, self).__init__()
+		self.hidden_dim = hidden_dim
+		self.output_dim = output_dim
+		self.embedding = embedding
+		self.n_layers = n_layers
+		self.device = device
+
+		self.gru= nn.GRU(embedding_dim, hidden_dim, n_layers, dropout=dropout, bidirectional=True, batch_first=False)
+		self.lin = nn.Linear(hidden_dim * 2, output_dim)
+
+		self.dropout = nn.Dropout(dropout)
+
+	def forward(self, x, lengths, hidden):
+		batch_size = x.size(0)
+		embeds = self.embedding[x]
+		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
+	
+		gru_out, hidden = self.gru(embeds, hidden)
+		gru_out, lengths = pad_packed_sequence(lstm_out)
+
+		out = torch.zeros_like(gru_out[0])
+
+		for i, length in enumerate(lengths):
+			out[i] = gru_out[length-1,i]
+		
+		out = self.dropout(out)
+		out = self.lin(out)
+
+		return out, hidden
+
+	def initHidden(self, batch_size):
+		return torch.zeros((2*self.n_layers, batch_size, self.hidden_dim), requires_grad=True).to(self.device)
 
 def trainNN(model, trainloader, batch_size, devData, devLengths, devLabels, optimizer, loss_fn, threshold, device):
 	counter = 0
@@ -201,7 +267,7 @@ def main():
 	#pytorch model
 	print("Training NN...")
 	torch.manual_seed(42)
-	rnn = BiLSTM(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0)
+	rnn = BiGRU(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0)
 	rnn.to(device)
 
 	optimizer = torch.optim.Adam(rnn.parameters(), lr=lr, weight_decay=weight_decay)
