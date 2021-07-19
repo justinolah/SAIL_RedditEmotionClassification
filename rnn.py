@@ -203,7 +203,7 @@ def main():
 	rnn = BiLSTM(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0)
 	rnn.to(device)
 
-	optimizer = torch.optim.Adam(rnn.parameters(), lr=lr)
+	optimizer = torch.optim.Adam(rnn.parameters(), lr=lr, weight_decay=weight_decay)
 
 	loss_fn= nn.BCEWithLogitsLoss(pos_weight= 8*torch.ones(len(emotions)).to(device))
 	#loss_fn = wlsep
