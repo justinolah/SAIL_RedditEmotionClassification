@@ -145,7 +145,7 @@ def main():
 	hidden_dim = 250
 	droput = 0.5
 	weight_decay = 0.0001
-	lr_decay = 0.8
+	lr_decay = 0.95
 	output_dim = len(emotions)
 	batch_size = 256
 	threshold = 0.5
