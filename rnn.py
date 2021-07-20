@@ -16,7 +16,7 @@ class UniLSTM(nn.Module):
 		self.dropout = nn.Dropout(dropout)
 
 	def forward(self, x, lengths, hidden):
-		batch_size = x.size(0)
+		batch_size = x.size(1)
 		embeds = self.embedding[x]
 		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
 	
@@ -54,7 +54,7 @@ class UniGRU(nn.Module):
 		self.dropout = nn.Dropout(dropout)
 
 	def forward(self, x, lengths, hidden):
-		batch_size = x.size(0)
+		batch_size = x.size(1)
 		embeds = self.embedding[x]
 		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
 
@@ -91,7 +91,7 @@ class BiLSTM(nn.Module):
 		self.dropout = nn.Dropout(dropout)
 
 	def forward(self, x, lengths, hidden):
-		batch_size = x.size(0)
+		batch_size = x.size(1)
 		embeds = self.embedding[x]
 		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
 	
@@ -127,7 +127,7 @@ class BiGRU(nn.Module):
 		self.dropout = nn.Dropout(dropout)
 
 	def forward(self, x, lengths, hidden):
-		batch_size = x.size(0)
+		batch_size = x.size(1)
 		embeds = self.embedding[x]
 		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
 
@@ -222,7 +222,7 @@ def main():
 	lr = 1e-2
 	filename = "rnn"
 
-	print("Loading glove..\n")
+	print("Loading embeddings..\n")
 	rawEmbedding = GloVe(name='twitter.27B', dim=embedding_dim)
 	#rawEmbedding = FastText(language='en')
 

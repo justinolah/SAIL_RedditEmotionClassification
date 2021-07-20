@@ -135,7 +135,7 @@ def main():
 	balanced=False
 	filename = "mlp"
 
-	print("Loading glove..\n")
+	print("Loading embeddings..\n")
 	rawEmbedding = GloVe(name='twitter.27B', dim=embedding_dim)
 	#rawEmbedding = FastText(language='en')
 
