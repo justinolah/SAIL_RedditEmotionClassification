@@ -15,10 +15,12 @@ class UniLSTM(nn.Module):
 
 		self.dropout = nn.Dropout(dropout)
 
-	def forward(self, x, lengths, hidden):
+	def forward(self, x, lengths):
 		batch_size = x.size(1)
 		embeds = self.embedding[x]
 		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
+
+		hidden = self.initHidden(batch_size)
 	
 		lstm_out, hidden = self.lstm(embeds, hidden)
 		lstm_out, lengths = pad_packed_sequence(lstm_out)
@@ -53,7 +55,7 @@ class UniGRU(nn.Module):
 
 		self.dropout = nn.Dropout(dropout)
 
-	def forward(self, x, lengths, hidden):
+	def forward(self, x, lengths):
 		batch_size = x.size(1)
 		embeds = self.embedding[x]
 		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
@@ -90,10 +92,12 @@ class BiLSTM(nn.Module):
 
 		self.dropout = nn.Dropout(dropout)
 
-	def forward(self, x, lengths, hidden):
+	def forward(self, x, lengths):
 		batch_size = x.size(1)
 		embeds = self.embedding[x]
 		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
+
+		hidden = self.initHidden(batch_size)
 	
 		lstm_out, hidden = self.lstm(embeds, hidden)
 		lstm_out, lengths = pad_packed_sequence(lstm_out)
@@ -126,7 +130,7 @@ class BiGRU(nn.Module):
 
 		self.dropout = nn.Dropout(dropout)
 
-	def forward(self, x, lengths, hidden):
+	def forward(self, x, lengths):
 		batch_size = x.size(1)
 		embeds = self.embedding[x]
 		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
@@ -161,15 +165,13 @@ def trainNN(model, trainloader, batch_size, devData, devLengths, devLabels, opti
 
 	for i, batch in enumerate(trainloader):
 		counter += 1
-		h = model.initHidden(len(batch))
-		h = tuple([e.data for e in h])
 		inputs, lengths = batch.text
 		labels = batch.labels.float()
 		allTargets.append(labels.detach())
 
 		inputs, labels = inputs.to(device), labels.to(device)
 		optimizer.zero_grad()
-		outputs, h = model(inputs, lengths, h)
+		outputs, h = model(inputs, lengths)
 		outputs = outputs.squeeze()
 		allPredictions.append((outputs.cpu() > threshold).int().detach())
 
@@ -182,9 +184,7 @@ def trainNN(model, trainloader, batch_size, devData, devLengths, devLabels, opti
 	trainLoss = train_running_loss / counter
 
 	model.eval()
-	val_h = model.initHidden(len(devData[0]))
-	val_h = tuple([e.data for e in val_h])
-	devOutput, val_h = model(devData.to(device), devLengths, val_h)
+	devOutput, val_h = model(devData.to(device), devLengths)
 	devOutput = devOutput.squeeze()
 	devLoss = loss_fn(devOutput, devLabels.to(device)).item()
 	devOutput = sigmoid(devOutput)
@@ -272,7 +272,7 @@ def main():
 	#pytorch model
 	print("Training NN...")
 	torch.manual_seed(42)
-	rnn = BiGRU(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0)
+	rnn = UniLSTM(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0)
 	rnn.to(device)
 
 	optimizer = torch.optim.Adam(rnn.parameters(), lr=lr, weight_decay=weight_decay)
@@ -332,10 +332,8 @@ def main():
 	testbatch = next(iter(Iterator(testset, len(devset))))
 	data, lengths = testbatch.text
 	labels = testbatch.labels.float()
-	h = rnn.initHidden(len(devset))
-	h = tuple([each.data for each in h])
 
-	outputs, h = rnn(data.to(device), lengths, h)
+	outputs, h = rnn(data.to(device), lengths)
 	outputs = sigmoid(outputs.squeeze())
 	prediction = (outputs > threshold).int().cpu()
 
