@@ -220,6 +220,7 @@ def main():
 	batch_size = 256
 	threshold = 0.5
 	lr = 1e-2
+	init_lr = lr
 	filename = "rnn"
 
 	print("Loading embeddings..\n")
@@ -316,7 +317,7 @@ def main():
 	fig, (ax1, ax2) = plt.subplots(2, figsize=(11, 9))
 	ax1.plot(trainLoss, color='b', label='Training loss')
 	ax1.plot(devLoss, color='r', label='Dev loss')
-	fig.suptitle(f"Hidden:{hidden_dim}, LR:{lr}, BS:{batch_size}, Embedding Size: {embedding_dim}, LR Decay: {lr_decay}, Weight Decay: {weight_decay}")
+	fig.suptitle(f"Hidden:{hidden_dim}, LR:{init_lr}, BS:{batch_size}, Embedding Size: {embedding_dim}, LR Decay: {lr_decay}, Weight Decay: {weight_decay}")
 	ax1.set(xlabel='Epochs', ylabel="Loss")
 	ax1.legend()
 	ax2.plot(trainF1, color='b', label='Training Macro F1')

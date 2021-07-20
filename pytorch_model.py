@@ -132,6 +132,7 @@ def main():
 	batch_size = 64
 	threshold = 0.5
 	lr = 1e-3
+	init_lr = lr
 	balanced=False
 	filename = "mlp"
 
@@ -231,7 +232,7 @@ def main():
 	fig, (ax1, ax2) = plt.subplots(2, figsize=(11, 9))
 	ax1.plot(trainLoss, color='b', label='Training loss')
 	ax1.plot(devLoss, color='r', label='Dev loss')
-	fig.suptitle(f"{hidden_dim1}X{hidden_dim2}, LR:{lr}, BS:{batch_size}, Embedding Size: {embedding_dim}")
+	fig.suptitle(f"{hidden_dim1}X{hidden_dim2}, LR:{init_lr}, BS:{batch_size}, Embedding Size: {embedding_dim}")
 	ax1.set(xlabel='Epochs', ylabel="Loss")
 	ax1.legend()
 	ax2.plot(trainF1, color='b', label='Training Macro F1')
