@@ -80,7 +80,6 @@ class UniLSTM(nn.Module):
 		hidden_matrix = torch.bmm(att_weights, lstm_out)
 
 		out = self.cat_layer(hidden_matrix.view(batch_size, -1))
-		print(out)
 
 		return out
 
