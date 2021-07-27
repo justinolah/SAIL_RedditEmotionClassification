@@ -76,6 +76,8 @@ class UniGRU(nn.Module):
 		self.attention = attention
 		self.r = r
 
+		self.tanh = torch.tanh
+
 		self.gru = nn.GRU(embedding_dim, hidden_dim, n_layers, dropout=dropout, batch_first=False)
 		if attention:
 			self.W_s1 = nn.Linear(hidden_dim, 350)
@@ -135,6 +137,8 @@ class BiLSTM(nn.Module):
 		self.maxlen = maxlen
 		self.attention = attention
 		self.r = r
+
+		self.tanh = torch.tanh
 
 		self.lstm = nn.LSTM(embedding_dim, hidden_dim, n_layers, dropout=dropout, bidirectional=True, batch_first=False)
 		if attention:
@@ -196,6 +200,8 @@ class BiGRU(nn.Module):
 		self.maxlen = maxlen
 		self.attention = attention
 		self.r = r
+
+		self.tanh = torch.tanh
 
 		self.gru= nn.GRU(embedding_dim, hidden_dim, n_layers, dropout=dropout, bidirectional=True, batch_first=False)
 		if attention:
@@ -365,7 +371,7 @@ def main():
 	#pytorch model
 	print("Training NN...")
 	torch.manual_seed(42)
-	rnn = UniLSTM(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, maxSentenceLength, device, n_layers=1, dropout=dropout, attention=attention)
+	rnn = BiLSTM(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, maxSentenceLength, device, n_layers=1, dropout=dropout, attention=attention)
 	rnn.to(device)
 
 	optimizer = torch.optim.Adam(rnn.parameters(), lr=lr, weight_decay=weight_decay)
