@@ -1,19 +1,87 @@
 from pytorch_model import *
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
+class Attention(nn.Module):
+	def __init__(self, feature_dim, step_dim, **kwargs):
+		super(Attention, self).__init__(**kwargs)
+		
+		self.supports_masking = True #delete?
+
+		self.feature_dim = feature_dim
+		self.step_dim = step_dim
+		self.features_dim = 0 #delete?
+		
+		weight = torch.zeros(feature_dim, 1)
+		nn.init.kaiming_uniform_(weight)
+		self.weight = nn.Parameter(weight)
+		
+		
+	def forward(self, x, mask=None):
+		feature_dim = self.feature_dim 
+		step_dim = self.step_dim
+
+		print(self.step_dim)
+		print(x)
+		print(x.size()) # x -> [24, 256, 250]
+		print(self.weight)
+		print(self.weight.size()) # weight -> [250 x 1]
+		eij = x.matmul(self.weight)
+		print(eij)
+		print(eij.size())
+		pizza
+
+		eij = torch.mm(
+			x.contiguous().view(-1, feature_dim), 
+			self.weight
+		).view(-1, step_dim)
+			
+		eij = torch.tanh(eij)
+		a = torch.exp(eij)
+		
+		if mask is not None:
+			a = a * mask
+
+		a = a / (torch.sum(a, 1, keepdim=True) + 1e-10) #softmax
+
+		weighted_input = x * torch.unsqueeze(a, -1)
+		return torch.sum(weighted_input, 1)
+
 class UniLSTM(nn.Module):
-	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0):
+	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, maxlen, device, n_layers=1, dropout=0, attention=True):
 		super(UniLSTM, self).__init__()
 		self.hidden_dim = hidden_dim
 		self.output_dim = output_dim
 		self.embedding = embedding
 		self.n_layers = n_layers
 		self.device = device
+		self.maxlen = maxlen
+		self.attention = attention
+
+		self.tanh = torch.tanh
 
 		self.lstm = nn.LSTM(embedding_dim, hidden_dim, n_layers, dropout=dropout, batch_first=False)
-		self.lin = nn.Linear(hidden_dim, output_dim)
+		if attention:
+			#self.attention_layer = Attention(hidden_dim, maxlen)
+			self.W_s1 = nn.Linear(hidden_dim, 350)
+			self.W_s2 = nn.Linear(350, 30)
+			self.cat_layer = nn.Linear(30*hidden_dim, 1000)
+			self.fc = nn.Linear(1000, output_dim)
+		else:
+			self.fc = nn.Linear(hidden_dim, output_dim)
 
 		self.dropout = nn.Dropout(dropout)
+
+	def attention_net(self, lstm_out, batch_size):
+		lstm_out = lstm_out.permute(1,0,2)
+		att_weights = self.W_s2(self.tanh(self.W_s1(lstm_out)))
+		att_weights = att_weights.permute(0, 2, 1)
+		att_weights = F.softmax(att_weights, dim=2)
+
+		hidden_matrix = torch.bmm(att_weights, lstm_out)
+
+		out = self.cat_layer(hidden_matrix.view(batch_size, -1))
+
+		return out
 
 	def forward(self, x, lengths):
 		batch_size = x.size(1)
@@ -23,17 +91,17 @@ class UniLSTM(nn.Module):
 		hidden = self.initHidden(batch_size)
 	
 		lstm_out, hidden = self.lstm(embeds, hidden)
-		lstm_out, lengths = pad_packed_sequence(lstm_out)
+		lstm_out, lengths = pad_packed_sequence(lstm_out,total_length=self.maxlen)
 
-		out = torch.zeros_like(lstm_out[0])
-
-		for i, length in enumerate(lengths):
-			out[i] = lstm_out[length-1,i]
-
-		#lstm_out = lstm_out[-1]
+		if self.attention:
+			out = self.attention_net(lstm_out, batch_size)#self.attention_layer(lstm_out)
+		else:
+			out = torch.zeros_like(lstm_out[0])
+			for i, length in enumerate(lengths):
+				out[i] = lstm_out[length-1,i]
 		
 		out = self.dropout(out)
-		out = self.lin(out)
+		out = self.fc(out)
 
 		return out, hidden
 
@@ -42,7 +110,7 @@ class UniLSTM(nn.Module):
 			torch.zeros((self.n_layers, batch_size, self.hidden_dim), requires_grad=True).to(self.device))
 
 class UniGRU(nn.Module):
-	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0):
+	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim,  maxlen, device, n_layers=1, dropout=0):
 		super(UniGRU, self).__init__()
 		self.hidden_dim = hidden_dim
 		self.output_dim = output_dim
@@ -51,7 +119,7 @@ class UniGRU(nn.Module):
 		self.device = device
 
 		self.gru = nn.GRU(embedding_dim, hidden_dim, n_layers, dropout=dropout, batch_first=False)
-		self.lin = nn.Linear(hidden_dim, output_dim)
+		self.fc = nn.Linear(hidden_dim, output_dim)
 
 		self.dropout = nn.Dropout(dropout)
 
@@ -71,7 +139,7 @@ class UniGRU(nn.Module):
 			out[i] = gru_out[length-1,i]
 		
 		out = self.dropout(out)
-		out = self.lin(out)
+		out = self.fc(out)
 
 		return out, hidden
 
@@ -79,7 +147,7 @@ class UniGRU(nn.Module):
 		return torch.zeros((self.n_layers, batch_size, self.hidden_dim), requires_grad=True).to(self.device)
 
 class BiLSTM(nn.Module):
-	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0):
+	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim,  maxlen, device, n_layers=1, dropout=0):
 		super(BiLSTM, self).__init__()
 		self.hidden_dim = hidden_dim
 		self.output_dim = output_dim
@@ -88,7 +156,7 @@ class BiLSTM(nn.Module):
 		self.device = device
 
 		self.lstm = nn.LSTM(embedding_dim, hidden_dim, n_layers, dropout=dropout, bidirectional=True, batch_first=False)
-		self.lin = nn.Linear(hidden_dim * 2, output_dim)
+		self.fc = nn.Linear(hidden_dim * 2, output_dim)
 
 		self.dropout = nn.Dropout(dropout)
 
@@ -106,9 +174,12 @@ class BiLSTM(nn.Module):
 
 		for i, length in enumerate(lengths):
 			out[i] = lstm_out[length-1,i]
+
+		#h_f = out[:,:,self.hidden_dim:]
+		#h_r = out[:,:, :self.hidden_dim]
 		
 		out = self.dropout(out)
-		out = self.lin(out)
+		out = self.fc(out)
 
 		return out, hidden
 
@@ -117,7 +188,7 @@ class BiLSTM(nn.Module):
 			torch.zeros((2*self.n_layers, batch_size, self.hidden_dim), requires_grad=True).to(self.device))
 
 class BiGRU(nn.Module):
-	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0):
+	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim,  maxlen, device, n_layers=1, dropout=0):
 		super(BiGRU, self).__init__()
 		self.hidden_dim = hidden_dim
 		self.output_dim = output_dim
@@ -126,7 +197,7 @@ class BiGRU(nn.Module):
 		self.device = device
 
 		self.gru= nn.GRU(embedding_dim, hidden_dim, n_layers, dropout=dropout, bidirectional=True, batch_first=False)
-		self.lin = nn.Linear(hidden_dim * 2, output_dim)
+		self.fc = nn.Linear(hidden_dim * 2, output_dim)
 
 		self.dropout = nn.Dropout(dropout)
 
@@ -146,7 +217,7 @@ class BiGRU(nn.Module):
 			out[i] = gru_out[length-1,i]
 		
 		out = self.dropout(out)
-		out = self.lin(out)
+		out = self.fc(out)
 
 		return out, hidden
 
@@ -213,7 +284,7 @@ def main():
 	embedding_dim = 200
 	epochs = 7
 	hidden_dim = 250
-	droput = 0.5
+	dropout = 0
 	weight_decay = 0.0001
 	lr_decay = 0.95
 	output_dim = len(emotions)
@@ -243,23 +314,23 @@ def main():
 	dev = dev[dev.text.str.len() > 0]
 
 	text_field = Field(
-	    sequential=True,
-	    tokenize='basic_english', 
-	    fix_length=maxSentenceLength,
-	    lower=True,
-	    include_lengths=True,
+		sequential=True,
+		tokenize='basic_english', 
+		fix_length=maxSentenceLength,
+		lower=True,
+		include_lengths=True,
 	)
 
 	#build vocab
 	preprocessed_text = train.text.apply(
-    	lambda x: text_field.preprocess(x)
+		lambda x: text_field.preprocess(x)
 	)
 
 	#print("Max sentence length:", np.array([len(row) for row in preprocessed_text.to_list()]).max()) #gets max sentence length
 
 	text_field.build_vocab(
-    	preprocessed_text, 
-    	vectors=rawEmbedding,
+		preprocessed_text, 
+		vectors=rawEmbedding,
 	)
 
 	vocab = text_field.vocab
@@ -272,7 +343,7 @@ def main():
 	#pytorch model
 	print("Training NN...")
 	torch.manual_seed(42)
-	rnn = UniLSTM(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, device, n_layers=1, dropout=0)
+	rnn = UniLSTM(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, maxSentenceLength, device, n_layers=1, dropout=dropout, attention=True)
 	rnn.to(device)
 
 	optimizer = torch.optim.Adam(rnn.parameters(), lr=lr, weight_decay=weight_decay)
