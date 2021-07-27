@@ -309,11 +309,12 @@ def main():
 	#parameters
 	maxSentenceLength = 31
 	embedding_dim = 200
-	epochs = 7
+	epochs = 15
 	hidden_dim = 250
 	dropout = 0
 	weight_decay = 0.0001
 	lr_decay = 0.95
+	decay_start = 5
 	output_dim = len(emotions)
 	batch_size = 256
 	threshold = 0.5
@@ -404,8 +405,9 @@ def main():
 		print("Training Macro F1:", f1_train)
 		print("Dev Macro F1:", f1_dev, "\n")
 
-		lr *= lr_decay
-		optimizer = torch.optim.Adam(rnn.parameters(), lr=lr, weight_decay=weight_decay)
+		if epoch > decay_start:
+			lr *= lr_decay
+			optimizer = torch.optim.Adam(rnn.parameters(), lr=lr, weight_decay=weight_decay)
 
 	print("Training complete\n")
 
