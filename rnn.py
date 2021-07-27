@@ -144,7 +144,7 @@ class BiLSTM(nn.Module):
 		if attention:
 			self.W_s1 = nn.Linear(hidden_dim * 2, 350)
 			self.W_s2 = nn.Linear(350, self.r)
-			self.cat_layer = nn.Linear(self.r * hidden_dim, 1000)
+			self.cat_layer = nn.Linear(self.r * 2 * hidden_dim, 1000)
 			self.fc = nn.Linear(1000, output_dim)
 		else:
 			self.fc = nn.Linear(hidden_dim * 2, output_dim)
@@ -207,7 +207,7 @@ class BiGRU(nn.Module):
 		if attention:
 			self.W_s1 = nn.Linear(hidden_dim * 2, 350)
 			self.W_s2 = nn.Linear(350, self.r)
-			self.cat_layer = nn.Linear(self.r * hidden_dim, 1000)
+			self.cat_layer = nn.Linear(self.r * 2 * hidden_dim, 1000)
 			self.fc = nn.Linear(1000, output_dim)
 		else:
 			self.fc = nn.Linear(hidden_dim * 2, output_dim)
