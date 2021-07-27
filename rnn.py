@@ -63,8 +63,8 @@ class UniLSTM(nn.Module):
 		if attention:
 			#self.attention_layer = Attention(hidden_dim, maxlen)
 			self.W_s1 = nn.Linear(hidden_dim, 350)
-			self.W_s2 = nn.Linear(350, 30)
-			self.cat_layer = nn.Linear(30*hidden_dim, 1000)
+			self.W_s2 = nn.Linear(350, 1)
+			self.cat_layer = nn.Linear(1*hidden_dim, 1000)
 			self.fc = nn.Linear(1000, output_dim)
 		else:
 			self.fc = nn.Linear(hidden_dim, output_dim)
@@ -80,6 +80,7 @@ class UniLSTM(nn.Module):
 		hidden_matrix = torch.bmm(att_weights, lstm_out)
 
 		out = self.cat_layer(hidden_matrix.view(batch_size, -1))
+		print(out)
 
 		return out
 
