@@ -319,6 +319,7 @@ def main():
 	batch_size = 256
 	threshold = 0.5
 	attention = True
+	r = 1
 	lr = 1e-2
 	init_lr = lr
 	filename = "rnn"
@@ -372,7 +373,7 @@ def main():
 	#pytorch model
 	print("Training NN...")
 	torch.manual_seed(42)
-	rnn = BiLSTM(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, maxSentenceLength, device, n_layers=1, dropout=dropout, attention=attention)
+	rnn = BiLSTM(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, maxSentenceLength, device, n_layers=1, r=r, dropout=dropout, attention=attention)
 	rnn.to(device)
 
 	optimizer = torch.optim.Adam(rnn.parameters(), lr=lr, weight_decay=weight_decay)
