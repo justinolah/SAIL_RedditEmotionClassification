@@ -12,6 +12,15 @@ from helpers import *
 from learn import *
 from loss_functions import *
 
+seed_value=42
+np.random.seed(seed_value) # cpu vars
+torch.manual_seed(seed_value) # cpu  vars
+random.seed(seed_value) # Python
+torch.cuda.manual_seed(seed_value)
+torch.cuda.manual_seed_all(seed_value)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
 class MultilayerPerceptron(nn.Module):
 	def __init__(self, embedding, embedding_dim, input_dim, hidden_dim1, hidden_dim2, output_dim, dropout=0):
 		super(MultilayerPerceptron, self).__init__()

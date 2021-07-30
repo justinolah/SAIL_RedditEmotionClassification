@@ -1,6 +1,16 @@
 from pytorch_model import *
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
+seed_value=42
+np.random.seed(seed_value) # cpu vars
+torch.manual_seed(seed_value) # cpu  vars
+random.seed(seed_value) # Python
+torch.cuda.manual_seed(seed_value)
+torch.cuda.manual_seed_all(seed_value)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
+
 class UniLSTM(nn.Module):
 	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, maxlen, device, n_layers=1, r=1, dropout=0, attention=False):
 		super(UniLSTM, self).__init__()
@@ -364,6 +374,7 @@ def main():
 	)
 
 	vocab = text_field.vocab
+	#print(len(vocab)) #25213
 
 	#Make datasets
 	dataset = makeDataset(train, emotions, text_field)
@@ -372,7 +383,6 @@ def main():
 
 	#pytorch model
 	print("Training NN...")
-	torch.manual_seed(42)
 	rnn = BiLSTM(vocab.vectors.to(device), embedding_dim, hidden_dim, output_dim, maxSentenceLength, device, n_layers=1, r=r, dropout=dropout, attention=attention)
 	rnn.to(device)
 
