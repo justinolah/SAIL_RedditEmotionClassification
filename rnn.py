@@ -325,6 +325,7 @@ def main():
 	weight_decay = 0.0001
 	lr_decay = 0.95
 	decay_start = 5
+	patience = 5
 	output_dim = len(emotions)
 	batch_size = 256
 	threshold = 0.5
@@ -416,14 +417,18 @@ def main():
 		print("Training Macro F1:", f1_train)
 		print("Dev Macro F1:", f1_dev, "\n")
 
+		if epoch == 0 or devF1[-1] > devF1[-2]:
+			torch.save({
+	            'epoch': epoch,
+	            'model_state_dict': rnn.state_dict(),
+	            'devF1' : devF1,
+	            }, "rnn.pt")
+
 		if epoch > decay_start:
 			lr *= lr_decay
 			optimizer = torch.optim.Adam(rnn.parameters(), lr=lr, weight_decay=weight_decay)
 
 	print("Training complete\n")
-
-	bestEpochDevF1 = np.argmax(np.array(devF1))
-	print("Best Dev F1:", devF1[bestEpochDevF1], "at epoch", bestEpochDevF1, "\n")
 
 	#learning curve 
 	fig, (ax1, ax2) = plt.subplots(2, figsize=(11, 9))
@@ -439,6 +444,12 @@ def main():
 	fig.savefig('plots/learningcurve_rnn.png')
 
 	#Testing metrics
+	bestCheckpoint = torch.load("rnn.pt")
+	rnn.load_state_dict(bestCheckpoint['model_state_dict'])
+	bestEpochDevF1 = bestCheckpoint['epoch']
+	bestEpochDevF1 = bestCheckpoint['devF1']
+	print("Best Dev F1:", devF1[bestEpochDevF1], "at epoch", bestEpochDevF1, "\n")
+
 	rnn.eval()
 	sigmoid = nn.Sigmoid()
 	testbatch = next(iter(Iterator(testset, len(devset))))
