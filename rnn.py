@@ -2,9 +2,9 @@ from pytorch_model import *
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 seed_value=42
-np.random.seed(seed_value) # cpu vars
-torch.manual_seed(seed_value) # cpu  vars
-random.seed(seed_value) # Python
+np.random.seed(seed_value)
+torch.manual_seed(seed_value)
+random.seed(seed_value) 
 torch.cuda.manual_seed(seed_value)
 torch.cuda.manual_seed_all(seed_value)
 torch.backends.cudnn.deterministic = True
@@ -421,7 +421,7 @@ def main():
 			torch.save({
 	            'epoch': epoch,
 	            'model_state_dict': rnn.state_dict(),
-	            'devF1' : devF1,
+	            'devF1' : devF1[-1],
 	            }, "rnn.pt")
 
 		if epoch > decay_start:
