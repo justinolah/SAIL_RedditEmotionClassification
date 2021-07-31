@@ -447,8 +447,8 @@ def main():
 	bestCheckpoint = torch.load("rnn.pt")
 	rnn.load_state_dict(bestCheckpoint['model_state_dict'])
 	bestEpochDevF1 = bestCheckpoint['epoch']
-	bestEpochDevF1 = bestCheckpoint['devF1']
-	print("Best Dev F1:", devF1[bestEpochDevF1], "at epoch", bestEpochDevF1, "\n")
+	bestDevF1 = bestCheckpoint['devF1']
+	print("Best Dev F1:", bestDevF1, "at epoch", bestEpochDevF1, "\n")
 
 	rnn.eval()
 	sigmoid = nn.Sigmoid()
@@ -463,7 +463,7 @@ def main():
 	accuracy = accuracy_score(labels, prediction)
 	print("Subset Accuracy:", accuracy)
 	print(classification_report(labels, prediction, target_names=emotions, zero_division=0, output_dict=False))
-	print("Best Dev F1:", devF1[bestEpochDevF1], "at epoch", bestEpochDevF1, "\n")
+	print("Best Dev F1:", bestDevF1, "at epoch", bestEpochDevF1, "\n")
 	report = classification_report(labels, prediction, target_names=emotions, zero_division=0, output_dict=True)
 
 	#export resuls to csv
