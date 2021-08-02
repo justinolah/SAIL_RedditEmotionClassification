@@ -199,7 +199,7 @@ def main():
 		if epoch == 0 or devF1[-1] > devF1[-2]:
 			torch.save({
 	            'epoch': epoch,
-	            'model_state_dict': rnn.state_dict(),
+	            'model_state_dict': model.state_dict(),
 	            'devF1' : devF1[-1],
 	            }, "bert.pt")
 
