@@ -112,13 +112,13 @@ def trainNN(model, trainloader, devloader, optimizer, loss_fn, threshold, device
 	return trainLoss, devLoss, f1_train, f1_dev
 
 def main():
-	epochs = 4
+	epochs = 5
 	batch_size = 16
 	max_length = 128
 	weight_decay = 0.0001
 	lr_decay = 0.95
 	threshold = 0.5
-	lr = 1e-4
+	lr = 1e-3
 	init_lr = lr
 	decay_start = 5
 	filename = "bert"
@@ -130,7 +130,7 @@ def main():
 	config.max_length = max_length
 	config.weight_decay = weight_decay
 	config.lr_decay = lr_decay
-	config.lr = lr_decay
+	config.lr = lr
 	config.decay_start = decay_start
 	config.framework = "bert"
 
