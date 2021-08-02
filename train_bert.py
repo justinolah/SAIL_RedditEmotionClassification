@@ -112,13 +112,13 @@ def trainNN(model, trainloader, devloader, optimizer, loss_fn, threshold, device
 	return trainLoss, devLoss, f1_train, f1_dev
 
 def main():
-	epochs = 3
+	epochs = 4
 	batch_size = 16
 	max_length = 128
-	weight_decay = 0.0001
+	weight_decay = 0
 	lr_decay = 0.95
 	threshold = 0.5
-	lr = 1e-3
+	lr = 1e-4
 	init_lr = lr
 	decay_start = 5
 	filename = "bert"
@@ -240,7 +240,7 @@ def main():
 
 		output = sigmoid(output)
 		outputs.append(output.cpu())
-		predictions.append((prediction.cpu() > threshold).int().detach())
+		predictions.append((output.cpu() > threshold).int().detach())
 		targets.append(labels)
 
 	predictions = np.concatenate(predictions)
