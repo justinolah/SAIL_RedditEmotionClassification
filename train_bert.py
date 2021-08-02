@@ -6,6 +6,8 @@ from transformers import BertModel, BertTokenizerFast
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.metrics import f1_score
 
+from tqdm import tqdm
+
 from helpers import *
 from learn import *
 
@@ -61,7 +63,8 @@ def trainNN(model, trainloader, devloader, optimizer, loss_fn, threshold, device
 	traintargets = []
 	trainpredictions = []
 
-	for i, batch in enumerate(trainloader):
+	loop = tqdm(enumerate(trainloader), total=len(trainloader), leave=False)
+	for i, batch in loop:
 		seq, mask, labels = batch
 		traintargets.append(labels.detach())
 
@@ -77,6 +80,8 @@ def trainNN(model, trainloader, devloader, optimizer, loss_fn, threshold, device
 
 		train_running_loss += loss.item()
 
+		loop.set_postfix(loss = loss.item())
+
 	trainLoss = train_running_loss / len(trainloader)
 
 	trainpredictions = np.concatenate(trainpredictions)
@@ -88,7 +93,7 @@ def trainNN(model, trainloader, devloader, optimizer, loss_fn, threshold, device
 	dev_running_loss = 0.0
 	devtargets = []
 	devpredictions = []
-	for batch in devloader():
+	for batch in devloader:
 		seq, mask, labels = batch
 		devOutput = model(seq.to(device), mask.to(device))
 
@@ -229,7 +234,7 @@ def main():
 	targets = []
 	outputs = []
 	predictions = []
-	for batch in testloader():
+	for batch in testloader:
 		seq, mask, labels = batch
 		output = model(seq.to(device), mask.to(device))
 
