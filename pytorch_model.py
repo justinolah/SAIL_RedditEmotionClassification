@@ -190,10 +190,10 @@ def main():
 
 	#pytorch model
 	print("Training NN...")
-	mlp = MultilayerPerceptron(vocab.vectors.to(device), embedding_dim, input_dim, hidden_dim1, hidden_dim2, output_dim)
-	mlp.to(device)
+	model = MultilayerPerceptron(vocab.vectors.to(device), embedding_dim, input_dim, hidden_dim1, hidden_dim2, output_dim)
+	model.to(device)
 
-	optimizer = torch.optim.Adam(mlp.parameters(), lr=lr, weight_decay=weight_decay)
+	optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 	trainloader = Iterator(dataset, batch_size)
 
 	weights = None
@@ -210,7 +210,7 @@ def main():
 	#loss_fn = lambda x,y,weights=weights : warp(x,y,rank_w,weights=weights)
 
 	#train model
-	mlp.train()
+	model.train()
 	trainLoss = []
 	devLoss = []
 	trainF1 = []
@@ -221,7 +221,7 @@ def main():
 
 	for epoch in range(epochs):
 		print("Epoch:", epoch)
-		epoch_loss, dev_loss, f1_train, f1_dev = trainNN(mlp, trainloader, devData, devLabels, optimizer, loss_fn, threshold, device)
+		epoch_loss, dev_loss, f1_train, f1_dev = trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, threshold, device)
 		trainLoss.append(epoch_loss)
 		devLoss.append(dev_loss)
 		trainF1.append(f1_train)
@@ -234,13 +234,13 @@ def main():
 		if epoch == 0 or devF1[-1] > devF1[-2]:
 			torch.save({
 	            'epoch': epoch,
-	            'model_state_dict': rnn.state_dict(),
+	            'model_state_dict': model.state_dict(),
 	            'devF1' : devF1[-1],
 	            }, "mlp.pt")
 
 		if epoch > decay_start:
 			lr *= lr_decay
-			optimizer = torch.optim.Adam(mlp.parameters(), lr=lr, weight_decay=weight_decay)
+			optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
 	print("Training complete\n")
 
@@ -259,18 +259,18 @@ def main():
 
 	#Testing metrics
 	bestCheckpoint = torch.load("mlp.pt")
-	mlp.load_state_dict(bestCheckpoint['model_state_dict'])
+	model.load_state_dict(bestCheckpoint['model_state_dict'])
 	bestEpochDevF1 = bestCheckpoint['epoch']
 	bestDevF1 = bestCheckpoint['devF1']
 	print("Best Dev F1:", bestDevF1, "at epoch", bestEpochDevF1, "\n")
 
-	mlp.eval()
+	model.eval()
 	sigmoid = nn.Sigmoid()
 	testbatch = next(iter(Iterator(testset, len(devset))))
 	data = testbatch.text.T
 	labels = testbatch.labels.float()
 
-	outputs = mlp(data.to(device))
+	outputs = model(data.to(device))
 	outputs = sigmoid(outputs)
 	prediction = (outputs > threshold).int().cpu()
 
