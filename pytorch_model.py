@@ -93,11 +93,13 @@ def trainNN(model, trainloader, devData, devLabels, optimizer, loss_fn, threshol
 		inputs, labels = inputs.to(device), labels.to(device)
 		optimizer.zero_grad()
 		outputs = model(inputs)
-		allPredictions.append((outputs.cpu() > threshold).int().detach())
 
 		loss = loss_fn(outputs, labels)
 		loss.backward()
 		optimizer.step()
+
+		outputs = sigmoid(outputs)
+		allPredictions.append((outputs.cpu() > threshold).int().detach())
 
 		train_running_loss += loss.item()
 

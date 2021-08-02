@@ -281,11 +281,13 @@ def trainNN(model, trainloader, batch_size, devData, devLengths, devLabels, opti
 		optimizer.zero_grad()
 		outputs, h = model(inputs, lengths)
 		outputs = outputs.squeeze()
-		allPredictions.append((outputs.cpu() > threshold).int().detach())
 
 		loss = loss_fn(outputs, labels)
 		loss.backward()
 		optimizer.step()
+
+		outputs = sigmoid(outputs)
+		allPredictions.append((outputs.cpu() > threshold).int().detach())
 
 		train_running_loss += loss.item()
 
