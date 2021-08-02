@@ -132,7 +132,7 @@ def main():
 	#parameters
 	maxSentenceLength = 31
 	embedding_dim = 200
-	epochs = 3
+	epochs = 7
 	input_dim = maxSentenceLength
 	hidden_dim1 = 1000
 	hidden_dim2 = 0
