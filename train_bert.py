@@ -94,7 +94,7 @@ def trainNN(model, trainloader, devloader, optimizer, loss_fn, threshold, device
 
 def main():
 	epochs = 3
-	batch_size = 64
+	batch_size = 16
 	max_length = 128
 	weight_decay = 0.0001
 	lr_decay = 0.95
