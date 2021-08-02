@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 from transformers import BertModel, BertTokenizerFast
 from torch.utils.data import TensorDataset, DataLoader
+from sklearn.metrics import f1_score
 
 from helpers import *
 from learn import *
