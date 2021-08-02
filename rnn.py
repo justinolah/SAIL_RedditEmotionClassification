@@ -441,7 +441,7 @@ def main():
 	ax2.plot(devF1, color='r', label='Dev Macro F1')
 	ax2.set(xlabel='Epochs', ylabel="Macro F1")
 	ax2.legend()
-	fig.savefig('plots/learningcurve_rnn.png')
+	fig.savefig("plots/learningcurve_" + filename + ".png")
 
 	#Testing metrics
 	bestCheckpoint = torch.load("rnn.pt")

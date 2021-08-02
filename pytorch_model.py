@@ -188,7 +188,6 @@ def main():
 
 	#pytorch model
 	print("Training NN...")
-	torch.manual_seed(42)
 	mlp = MultilayerPerceptron(vocab.vectors.to(device), embedding_dim, input_dim, hidden_dim1, hidden_dim2, output_dim)
 	mlp.to(device)
 
