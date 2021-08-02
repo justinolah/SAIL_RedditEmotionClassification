@@ -65,7 +65,7 @@ def trainNN(model, trainloader, devloader, optimizer, loss_fn, threshold, device
 		counter += 1
 		seq, mask, labels = batch
 		allTargets.append(labels.detach())
-
+		print(i)
 		optimizer.zero_grad()
 		output = model(seq.to(device), mask.to(device))
 		allPredictions.append((output.cpu() > threshold).int().detach())
