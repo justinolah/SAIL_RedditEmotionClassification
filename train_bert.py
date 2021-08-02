@@ -104,6 +104,8 @@ def main():
 	decay_start = 5
 	filename = "bert"
 
+	freeze_bert = True
+
 	config.epochs = epochs
 	config.batch_size = batch_size
 	config.max_length = max_length
@@ -140,6 +142,9 @@ def main():
 
 	#initialize model
 	bert = BertModel.from_pretrained('bert-base-uncased')
+	if freeze_bert:
+		for param in bert.parameters():
+			param.requires_grad = False
 	model = BERT_Model(bert, len(emotions))
 	model = model.to(device)
 	wandb.watch(model)
