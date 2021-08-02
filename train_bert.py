@@ -52,43 +52,56 @@ def makeBERTDataset(data, tokenizer, max_length, emotions):
 	return dataset
 
 def trainNN(model, trainloader, devloader, optimizer, loss_fn, threshold, device):
-	counter = 0
-	train_running_loss = 0.0
 	sigmoid = nn.Sigmoid()
 
 	model.train()
 
-	allTargets = []
-	allPredictions = []
+	train_running_loss = 0.0
+	traintargets = []
+	trainpredictions = []
 
 	for i, batch in enumerate(trainloader):
-		counter += 1
 		seq, mask, labels = batch
-		allTargets.append(labels.detach())
-		print(i)
+		traintargets.append(labels.detach())
+
 		optimizer.zero_grad()
 		output = model(seq.to(device), mask.to(device))
-		allPredictions.append((output.cpu() > threshold).int().detach())
 
 		loss = loss_fn(output, labels.float().to(device))
 		loss.backward()
 		optimizer.step()
 
+		output = sigmoid(output)
+		trainpredictions.append((output.cpu() > threshold).int().detach())
+
 		train_running_loss += loss.item()
 
-	trainLoss = train_running_loss / counter
+	trainLoss = train_running_loss / len(trainloader)
 
+	trainpredictions = np.concatenate(trainpredictions)
+	traintargets = np.concatenate(traintargets)
+	f1_train = f1_score(traintargets, trainpredictions, average='macro')
+
+	#dev evaluation
 	model.eval()
-	seq, mask, labels = next(iter(devloader))
-	devOutput = model(seq.to(device), mask.to(device))
-	devLoss = loss_fn(devOutput, labels.float().to(device)).item()
-	devOutput = sigmoid(devOutput)
+	dev_running_loss = 0.0
+	devtargets = []
+	devpredictions = []
+	for batch in devloader():
+		seq, mask, labels = batch
+		devOutput = model(seq.to(device), mask.to(device))
 
-	allPredictions = np.concatenate(allPredictions)
-	allTargets = np.concatenate(allTargets)
+		dev_running_loss += loss_fn(devOutput, labels.float().to(device)).item()
 
-	f1_train = f1_score(allTargets, allPredictions, average='macro')
-	f1_dev = f1_score(labels.detach(), (devOutput.cpu() > threshold).int().detach(), average='macro')
+		devOutput = sigmoid(devOutput)
+		devpredictions.append((devOutput.cpu() > threshold).int().detach())
+		devtargets.append(labels)
+
+	devLoss = dev_running_loss / len(devloader)
+
+	devpredictions = np.concatenate(devpredictions)
+	devtargets = np.concatenate(devtargets)
+	f1_dev = f1_score(devtargets, devpredictions, average='macro')
 
 	return trainLoss, devLoss, f1_train, f1_dev
 
@@ -137,8 +150,8 @@ def main():
 	dev_set = makeBERTDataset(dev, tokenizer, max_length, emotions)
 
 	trainloader = DataLoader(train_set, batch_size=batch_size)
-	testloader = DataLoader(test_set, batch_size=len(dev_set))
-	devLoader = DataLoader(dev_set, batch_size=len(dev_set))
+	testloader = DataLoader(test_set, batch_size=500)
+	devLoader = DataLoader(dev_set, batch_size=500)
 
 	#initialize model
 	bert = BertModel.from_pretrained('bert-base-uncased')
@@ -212,18 +225,27 @@ def main():
 
 	model.eval()
 	sigmoid = nn.Sigmoid()
-	seq, mask, labels = next(iter(testloader))
+	targets = []
+	outputs = []
+	predictions = []
+	for batch in testloader():
+		seq, mask, labels = batch
+		output = model(seq.to(device), mask.to(device))
 
-	output = model(seq.to(device), mask.to(device))
-	output = sigmoid(output)
-	prediction = (output > threshold).int().cpu()
+		output = sigmoid(output)
+		outputs.append(output.cpu())
+		predictions.append((prediction.cpu() > threshold).int().detach())
+		targets.append(labels)
 
-	accuracy = accuracy_score(labels, prediction)
+	predictions = np.concatenate(predictions)
+	targets = np.concatenate(targets)
+
+	accuracy = accuracy_score(targets, predictions)
 
 	print("Subset Accuracy:", accuracy)
-	print(classification_report(labels, prediction, target_names=emotions, zero_division=0, output_dict=False))
+	print(classification_report(targets, predictions, target_names=emotions, zero_division=0, output_dict=False))
 	print("Best Dev F1:", bestDevF1, "at epoch", bestEpochDevF1, "\n")
-	report = classification_report(labels, prediction, target_names=emotions, zero_division=0, output_dict=True)
+	report = classification_report(targets, predictions, target_names=emotions, zero_division=0, output_dict=True)
 
 	#export resuls to csv
 	micro = list(report['micro avg'].values())
@@ -235,7 +257,7 @@ def main():
 	results.to_csv("tables/" + filename + "_results.csv")
 
 	#confusion matrix
-	multilabel_confusion_matrix(np.array(labels), output.cpu().detach().numpy(), emotions, top_x=3, filename=filename)
+	multilabel_confusion_matrix(np.array(targets), np.array(outputs), emotions, top_x=3, filename=filename)
 
 
 if __name__ == "__main__":
