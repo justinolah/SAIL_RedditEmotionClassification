@@ -30,7 +30,6 @@ class BERT_Model(nn.Module):
 
 	def forward(self, sent_id, mask):
 		_, cls_hs = self.bert(sent_id, attention_mask=mask, return_dict=False)
-		print(cls_hs)
 		out = self.fc(cls_hs)
 		return out
 
