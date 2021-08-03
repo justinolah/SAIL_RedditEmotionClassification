@@ -192,10 +192,14 @@ def main():
 		print("Training Macro F1:", f1_train)
 		print("Dev Macro F1:", f1_dev, "\n")
 
-		wandb.log({"train_loss": epoch_loss})
-		wandb.log({"dev_loss": dev_loss})
-		wandb.log({"train_f1": f1_train})
-		wandb.log({"dev_f1": f1_dev})
+		wandb.log({"train_loss": epoch_loss,
+			"dev_loss": dev_loss,
+			"train_f1": f1_train,
+			"dev_f1": f1_dev
+			})
+		wandb.log({})
+		wandb.log({})
+		wandb.log({})
 
 		if epoch == 0 or devF1[-1] > devF1[-2]:
 			torch.save({
@@ -256,7 +260,7 @@ def main():
 	report = classification_report(targets, predictions, target_names=emotions, zero_division=0, output_dict=True)
 
 	table = wandb.Table(dataframe=pd.DataFrame.from_dict(report))
-	wanb.log({"report": table})
+	wandb.log({"report": table})
 
 	#export resuls to csv
 	micro = list(report['micro avg'].values())
