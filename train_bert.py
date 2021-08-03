@@ -118,7 +118,7 @@ def main():
 	weight_decay = 0.0001
 	lr_decay = 0.95
 	threshold = 0.5
-	lr = 1e-3
+	lr = 1e-4
 	init_lr = lr
 	decay_start = 5
 	filename = "bert"
@@ -132,6 +132,7 @@ def main():
 	config.lr_decay = lr_decay
 	config.lr = lr
 	config.decay_start = decay_start
+	config.freeze_bert = freeze_bert
 	config.framework = "bert"
 
 	if torch.cuda.is_available():
@@ -156,8 +157,8 @@ def main():
 	dev_set = makeBERTDataset(dev, tokenizer, max_length, emotions)
 
 	trainloader = DataLoader(train_set, batch_size=batch_size)
-	testloader = DataLoader(test_set, batch_size=500)
-	devLoader = DataLoader(dev_set, batch_size=500)
+	testloader = DataLoader(test_set, batch_size=batch_size)
+	devLoader = DataLoader(dev_set, batch_size=batch_size)
 
 	#initialize model
 	bert = BertModel.from_pretrained('bert-base-uncased')
@@ -239,8 +240,9 @@ def main():
 		output = model(seq.to(device), mask.to(device))
 
 		output = sigmoid(output)
-		outputs.append(output.cpu())
-		predictions.append((output.cpu() > threshold).int().detach())
+		output = output.cpu()
+		outputs.append(output.detach())
+		predictions.append((output > threshold).int().detach())
 		targets.append(labels)
 
 	predictions = np.concatenate(predictions)
@@ -253,6 +255,9 @@ def main():
 	print("Best Dev F1:", bestDevF1, "at epoch", bestEpochDevF1, "\n")
 	report = classification_report(targets, predictions, target_names=emotions, zero_division=0, output_dict=True)
 
+	table = wandb.Table(dataframe=pd.DataFrame.from_dict(report))
+	wanb.log({"report": table})
+
 	#export resuls to csv
 	micro = list(report['micro avg'].values())
 	micro.pop() 
@@ -263,7 +268,7 @@ def main():
 	results.to_csv("tables/" + filename + "_results.csv")
 
 	#confusion matrix
-	multilabel_confusion_matrix(np.array(targets), outputs.cpu().detach().numpy(), emotions, top_x=3, filename=filename)
+	multilabel_confusion_matrix(np.array(targets), np.array(outputs), emotions, top_x=3, filename=filename)
 
 
 if __name__ == "__main__":
