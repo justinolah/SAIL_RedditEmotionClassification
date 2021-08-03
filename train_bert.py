@@ -196,10 +196,7 @@ def main():
 			"dev_loss": dev_loss,
 			"train_f1": f1_train,
 			"dev_f1": f1_dev
-			})
-		wandb.log({})
-		wandb.log({})
-		wandb.log({})
+		})
 
 		if epoch == 0 or devF1[-1] > devF1[-2]:
 			torch.save({
@@ -272,7 +269,7 @@ def main():
 	results.to_csv("tables/" + filename + "_results.csv")
 
 	#confusion matrix
-	multilabel_confusion_matrix(np.array(targets), np.array(outputs), emotions, top_x=3, filename=filename)
+	multilabel_confusion_matrix(np.array(targets), outputs.detach().numpy(), emotions, top_x=3, filename=filename)
 
 
 if __name__ == "__main__":
