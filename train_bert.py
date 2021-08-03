@@ -118,12 +118,12 @@ def main():
 	weight_decay = 0.0001
 	lr_decay = 0.95
 	threshold = 0.5
-	lr = 1e-4
+	lr = 5e-5
 	init_lr = lr
 	decay_start = 5
 	filename = "bert"
 
-	freeze_bert = True
+	freeze_bert = False
 
 	config.epochs = epochs
 	config.batch_size = batch_size
