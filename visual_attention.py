@@ -1,5 +1,67 @@
 from rnn import *
 
+class BiLSTM(nn.Module):
+	def __init__(self, embedding, embedding_dim, hidden_dim, output_dim, maxlen, device, n_layers=1, r=1, dropout=0, attention=False):
+		super(BiLSTM, self).__init__()
+		self.hidden_dim = hidden_dim
+		self.output_dim = output_dim
+		self.embedding = embedding
+		self.n_layers = n_layers
+		self.device = device
+		self.maxlen = maxlen
+		self.attention = attention
+		self.r = r
+
+		self.tanh = torch.tanh
+
+		self.lstm = nn.LSTM(embedding_dim, hidden_dim, n_layers, dropout=dropout, bidirectional=True, batch_first=False)
+		if attention:
+			self.W_s1 = nn.Linear(hidden_dim * 2, 350)
+			self.W_s2 = nn.Linear(350, self.r)
+			self.cat_layer = nn.Linear(self.r * 2 * hidden_dim, 1000)
+			self.fc = nn.Linear(1000, output_dim)
+		else:
+			self.fc = nn.Linear(hidden_dim * 2, output_dim)
+
+		self.dropout = nn.Dropout(dropout)
+
+	def attention_net(self, lstm_out, batch_size):
+		lstm_out = lstm_out.permute(1,0,2)
+		att_weights = self.W_s2(self.tanh(self.W_s1(lstm_out)))
+		att_weights = att_weights.permute(0, 2, 1)
+		att_weights = F.softmax(att_weights, dim=2)
+
+		hidden_matrix = torch.bmm(att_weights, lstm_out)
+
+		out = self.cat_layer(hidden_matrix.view(batch_size, -1))
+
+		return out, att_weights
+
+	def forward(self, x, lengths):
+		batch_size = x.size(1)
+		embeds = self.embedding[x]
+		embeds = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
+
+		hidden = self.initHidden(batch_size)
+	
+		lstm_out, hidden = self.lstm(embeds, hidden)
+		lstm_out, lengths = pad_packed_sequence(lstm_out, total_length=self.maxlen)
+
+		if self.attention:
+			out, att_weights = self.attention_net(lstm_out, batch_size)
+		else:
+			out = torch.zeros_like(lstm_out[0])
+			for i, length in enumerate(lengths):
+				out[i] = lstm_out[length-1,i]
+		
+		out = self.dropout(out)
+		out = self.fc(out)
+
+		return out, hidden, att_weights
+
+	def initHidden(self, batch_size):
+		return (torch.zeros((2*self.n_layers, batch_size, self.hidden_dim), requires_grad=True).to(self.device),
+			torch.zeros((2*self.n_layers, batch_size, self.hidden_dim), requires_grad=True).to(self.device))
 
 
 def main():

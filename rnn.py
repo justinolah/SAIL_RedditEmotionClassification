@@ -171,7 +171,7 @@ class BiLSTM(nn.Module):
 
 		out = self.cat_layer(hidden_matrix.view(batch_size, -1))
 
-		return out, att_weights
+		return out
 
 	def forward(self, x, lengths):
 		batch_size = x.size(1)
@@ -193,7 +193,7 @@ class BiLSTM(nn.Module):
 		out = self.dropout(out)
 		out = self.fc(out)
 
-		return out, hidden, att_weights
+		return out, hidden
 
 	def initHidden(self, batch_size):
 		return (torch.zeros((2*self.n_layers, batch_size, self.hidden_dim), requires_grad=True).to(self.device),
