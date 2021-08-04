@@ -171,7 +171,7 @@ class BiLSTM(nn.Module):
 
 		out = self.cat_layer(hidden_matrix.view(batch_size, -1))
 
-		return out
+		return out, att_weights
 
 	def forward(self, x, lengths):
 		batch_size = x.size(1)
@@ -184,7 +184,7 @@ class BiLSTM(nn.Module):
 		lstm_out, lengths = pad_packed_sequence(lstm_out, total_length=self.maxlen)
 
 		if self.attention:
-			out = self.attention_net(lstm_out, batch_size)
+			out, att_weights = self.attention_net(lstm_out, batch_size)
 		else:
 			out = torch.zeros_like(lstm_out[0])
 			for i, length in enumerate(lengths):
@@ -193,7 +193,7 @@ class BiLSTM(nn.Module):
 		out = self.dropout(out)
 		out = self.fc(out)
 
-		return out, hidden
+		return out, hidden, att_weights
 
 	def initHidden(self, batch_size):
 		return (torch.zeros((2*self.n_layers, batch_size, self.hidden_dim), requires_grad=True).to(self.device),
@@ -479,6 +479,8 @@ def main():
 
 	#confusion matrix
 	multilabel_confusion_matrix(np.array(labels), outputs.cpu().detach().numpy(), emotions, top_x=3, filename=filename)
+
+	torch.save(model, "rnn_whole_model.pt")
 
 if __name__ == "__main__":
 	main()
