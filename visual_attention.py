@@ -135,13 +135,21 @@ def main():
 
 	#get one example
 	example = next(iter(trainloader))
-	print(train.text[0])
+	sentence = train.text[0]
+	words = sentence.split()
+	print(sentence)
 	data, length = example.text
 
 	output, h, att_weights = model(data.to(device), length)
 	att_weights = att_weights.cpu()
 	print(att_weights)
 	print(att_weights.size())
+
+	soft = nn.Softmax()
+
+	heat = soft(att_weights.squeeze()[0:len(words)])
+	print(heat)
+
 
 
 
