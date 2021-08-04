@@ -145,7 +145,7 @@ def main():
 	print(att_weights)
 	print(att_weights.size())
 
-	soft = nn.Softmax()
+	soft = nn.Softmax(dim=0)
 
 	heat = soft(att_weights.squeeze()[0:len(words)])
 	print(heat)
