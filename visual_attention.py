@@ -133,22 +133,21 @@ def main():
 
 	trainloader = Iterator(dataset, 1)
 
-	#get one example
-	example = next(iter(trainloader))
-	sentence = train.text[0]
-	words = sentence.split()
-	print(sentence)
-	data, length = example.text
+	for i in range(5):
+		print("Example:", i)
+		example = next(iter(trainloader))
+		sentence = train.text[i]
+		words = sentence.split()
+		print(sentence)
+		data, length = example.text
 
-	output, h, att_weights = model(data.to(device), length)
-	att_weights = att_weights.cpu()
-	print(att_weights)
-	print(att_weights.size())
+		output, h, att_weights = model(data.to(device), length)
+		att_weights = att_weights.cpu()
 
-	soft = nn.Softmax(dim=0)
+		soft = nn.Softmax(dim=0)
 
-	heat = soft(att_weights.squeeze()[0:len(words)])
-	print(heat)
+		heat = soft(att_weights.squeeze()[0:len(words)])
+		print(heat)
 
 
 
