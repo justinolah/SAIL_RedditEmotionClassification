@@ -185,7 +185,7 @@ def main():
 
 	if grouping is None:
 		balancedClassWeights = len(train.labels) / (len(emotions) * torch.sum(torch.tensor(train.labels),0)).to(device)
-		pos_weight = torch.div((len(train.labels) - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0), rounding_mode='floor').to(device)
+		pos_weight = torch.div((len(train.labels) - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0)).to(device)
 		#pos_weight = 8 * torch.ones(len(emotions)).to(device)
 	else:
 		pos_weight = None
