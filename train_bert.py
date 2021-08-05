@@ -37,8 +37,11 @@ class BERT_Model(nn.Module):
 		return out
 
 
-def makeBERTDataset(data, tokenizer, max_length, emotions):
-	data.labels = data.labels.apply(lambda x: getYMatrix(x,len(emotions)))
+def makeBERTDataset(data, tokenizer, max_length, emotions, new_emotions=None, idx_map=None):
+	if idx_map is None:
+		data.labels = data.labels.apply(lambda x: getYMatrix(x,len(emotions)))
+	else:
+		data.labels = data.labels.apply(lambda x: getYMatrixWithMap(x, len(new_emotions), idx_map))
 
 	tokens = tokenizer.batch_encode_plus(
 		data.text.tolist(),
@@ -112,7 +115,7 @@ def trainNN(model, trainloader, devloader, optimizer, loss_fn, threshold, device
 	return trainLoss, devLoss, f1_train, f1_dev
 
 def main():
-	epochs = 5
+	epochs = 3
 	batch_size = 16
 	max_length = 128
 	weight_decay = 0.0001
@@ -122,6 +125,7 @@ def main():
 	init_lr = lr
 	decay_start = 5
 	filename = "bert"
+	grouping = "ekman"
 
 	freeze_bert = False
 
@@ -134,6 +138,7 @@ def main():
 	config.decay_start = decay_start
 	config.freeze_bert = freeze_bert
 	config.framework = "bert"
+	config.grouping = grouping
 
 	if torch.cuda.is_available():
 		print("Using cuda...")
@@ -146,19 +151,41 @@ def main():
 	emotions = getEmotions()
 	emotions.remove("neutral")
 
+	ekmanDict = getEkmanDict()
+	sentDict = getSentimentDict()
+	ekEmotions = ekmanDict.keys()
+	sentEmotions = sentDict.keys()
+	ek_idx_map = getEmotionIndexMap(emotions, ekmanDict)
+	sent_idx_map = getEmotionIndexMap(emotions, sentDict)
+
 	train = getTrainSet()
 	test = getTestSet()
 	dev = getValSet()
 
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
-	train_set = makeBERTDataset(train, tokenizer, max_length, emotions)
-	test_set = makeBERTDataset(test, tokenizer, max_length, emotions)
-	dev_set = makeBERTDataset(dev, tokenizer, max_length, emotions)
+	if grouping == "ekman":
+		new_emotions = ekEmotions
+		idx_map = ek_idx_map
+	elif grouping == "sentiment"
+		new_emotions = sentEmotions
+		idx_map = sent_idx_map
+	else:
+		new_emotions = emotions
+		idx_map = None
+
+	train_set = makeBERTDataset(train, tokenizer, max_length, emotions, new_emotions=new_emotions, idx_map=idx_map)
+	test_set = makeBERTDataset(test, tokenizer, max_length, emotions, new_emotions=new_emotions, idx_map=idx_map)
+	dev_set = makeBERTDataset(dev, tokenizer, max_length, emotions, new_emotions=new_emotions, idx_map=idx_map)
 
 	trainloader = DataLoader(train_set, batch_size=batch_size)
 	testloader = DataLoader(test_set, batch_size=batch_size)
 	devLoader = DataLoader(dev_set, batch_size=batch_size)
+
+	if grouping == "ekman":
+		emotions = ekEmotions
+	elif grouping == "sentiment"
+		emotions = sentEmotions
 
 	#initialize model
 	bert = BertModel.from_pretrained('bert-base-uncased')
