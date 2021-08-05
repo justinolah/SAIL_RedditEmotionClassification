@@ -280,6 +280,7 @@ def main():
 
 	predictions = np.concatenate(predictions)
 	targets = np.concatenate(targets)
+	outputs = np.concatenate(outputs)
 
 	accuracy = accuracy_score(targets, predictions)
 
