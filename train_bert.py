@@ -167,7 +167,7 @@ def main():
 	if grouping == "ekman":
 		new_emotions = ekEmotions
 		idx_map = ek_idx_map
-	elif grouping == "sentiment"
+	elif grouping == "sentiment":
 		new_emotions = sentEmotions
 		idx_map = sent_idx_map
 	else:
@@ -184,7 +184,7 @@ def main():
 
 	if grouping == "ekman":
 		emotions = ekEmotions
-	elif grouping == "sentiment"
+	elif grouping == "sentiment":
 		emotions = sentEmotions
 
 	#initialize model
