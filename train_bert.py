@@ -301,7 +301,7 @@ def main():
 	results.to_csv("tables/" + filename + "_results.csv")
 
 	#confusion matrix
-	multilabel_confusion_matrix(np.array(targets), outputs.detach().numpy(), emotions, top_x=3, filename=filename)
+	multilabel_confusion_matrix(np.array(targets), np.array(outputs), emotions, top_x=3, filename=filename)
 
 
 if __name__ == "__main__":
