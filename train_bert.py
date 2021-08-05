@@ -196,7 +196,12 @@ def main():
 	model = model.to(device)
 	wandb.watch(model)
 
-	loss_fn= nn.BCEWithLogitsLoss(pos_weight= 8*torch.ones(len(emotions)).to(device))
+	if grouping is None:
+		pos_weight = 8 * torch.ones(len(emotions)).to(device)
+	else:
+		pos_weight = None
+
+	loss_fn= nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
 	optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
