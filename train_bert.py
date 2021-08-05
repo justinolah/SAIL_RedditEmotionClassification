@@ -125,7 +125,8 @@ def main():
 	init_lr = lr
 	decay_start = 5
 	filename = "bert"
-	grouping = "ekman"
+	framework = "bert with pos weights"
+	grouping = None
 
 	freeze_bert = False
 
@@ -137,7 +138,7 @@ def main():
 	config.lr = lr
 	config.decay_start = decay_start
 	config.freeze_bert = freeze_bert
-	config.framework = "bert"
+	config.framework = framework
 	config.grouping = grouping
 
 	if torch.cuda.is_available():
@@ -182,6 +183,16 @@ def main():
 	testloader = DataLoader(test_set, batch_size=batch_size)
 	devLoader = DataLoader(dev_set, batch_size=batch_size)
 
+	if grouping is None:
+		balancedClassWeights = len(train.labels) / (len(emotions) * torch.sum(torch.tensor(train.labels),0)).to(device)
+		pos_weight = torch.div((len(train.labels) - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0), rounding_mode='floor').to(device)
+		print(pos_weight)
+		return
+		#pos_weight = 8 * torch.ones(len(emotions)).to(device)
+	else:
+		pos_weight = None
+	
+
 	if grouping == "ekman":
 		emotions = ekEmotions
 	elif grouping == "sentiment":
@@ -195,11 +206,6 @@ def main():
 	model = BERT_Model(bert, len(emotions))
 	model = model.to(device)
 	wandb.watch(model)
-
-	if grouping is None:
-		pos_weight = 8 * torch.ones(len(emotions)).to(device)
-	else:
-		pos_weight = None
 
 	loss_fn= nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
@@ -232,10 +238,10 @@ def main():
 
 		if epoch == 0 or devF1[-1] > devF1[-2]:
 			torch.save({
-	            'epoch': epoch,
-	            'model_state_dict': model.state_dict(),
-	            'devF1' : devF1[-1],
-	            }, "bert.pt")
+				'epoch': epoch,
+				'model_state_dict': model.state_dict(),
+				'devF1' : devF1[-1],
+				}, "bert.pt")
 
 		if epoch > decay_start:
 			lr *= lr_decay
