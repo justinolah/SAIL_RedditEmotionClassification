@@ -125,7 +125,7 @@ def main():
 	init_lr = lr
 	decay_start = 5
 	filename = "bert"
-	framework = "bert with pos weights"
+	framework = "bert"
 	grouping = None
 
 	freeze_bert = False
@@ -184,13 +184,11 @@ def main():
 	devLoader = DataLoader(dev_set, batch_size=batch_size)
 
 	if grouping is None:
-		balancedClassWeights = len(train.labels) / (len(emotions) * torch.sum(torch.tensor(train.labels),0)).to(device)
-		pos_weight = torch.div((len(train.labels) - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0)).to(device)
-		#pos_weight = 8 * torch.ones(len(emotions)).to(device)
+		#pos_weight = torch.div((len(train.labels) - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0)).to(device)
+		pos_weight = 8 * torch.ones(len(emotions)).to(device)
 	else:
 		pos_weight = None
 	
-
 	if grouping == "ekman":
 		emotions = ekEmotions
 	elif grouping == "sentiment":
@@ -235,6 +233,7 @@ def main():
 		})
 
 		if epoch == 0 or devF1[-1] > devF1[-2]:
+			print("saving checkpoint...")
 			torch.save({
 				'epoch': epoch,
 				'model_state_dict': model.state_dict(),
