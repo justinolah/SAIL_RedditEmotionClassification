@@ -84,6 +84,8 @@ def main():
 	emotions = getEmotions()
 	emotions.remove("neutral")
 
+	max_length = 128
+
 	texts = ["As an anesthesia resident this made me blow air out my nose at an accelerated rate for several seconds. Take your damn upvote you bastard."]
 
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
@@ -107,6 +109,10 @@ def main():
 
 	print(seq)
 	print(mask)
+
+	output, attention = model(seq[0], mask[0])
+	print(output)
+	print(attention)
 
 
 
