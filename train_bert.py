@@ -115,7 +115,7 @@ def trainNN(model, trainloader, devloader, optimizer, loss_fn, threshold, device
 	return trainLoss, devLoss, f1_train, f1_dev
 
 def main():
-	epochs = 3
+	epochs = 5
 	batch_size = 16
 	max_length = 128
 	weight_decay = 0.0001
@@ -184,7 +184,7 @@ def main():
 	devLoader = DataLoader(dev_set, batch_size=batch_size)
 
 	if grouping is None:
-		#pos_weight = torch.div((len(train.labels) - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0)).to(device)
+		#pos_weight = torch.sqrt(torch.div((len(train.labels) - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0))).to(device)
 		pos_weight = 8 * torch.ones(len(emotions)).to(device)
 	else:
 		pos_weight = None
@@ -232,7 +232,7 @@ def main():
 			"dev_f1": f1_dev
 		})
 
-		if epoch == 0 or devF1[-1] > devF1[-2]:
+		if epoch == 0 or np.argmax(devF1) == epoch:
 			print("saving checkpoint...")
 			torch.save({
 				'epoch': epoch,

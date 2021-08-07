@@ -231,7 +231,7 @@ def main():
 		print("Training Macro F1:", f1_train)
 		print("Dev Macro F1:", f1_dev, "\n")
 
-		if epoch == 0 or devF1[-1] > devF1[-2]:
+		if epoch == 0 or np.argmax(devF1) == epoch:
 			torch.save({
 	            'epoch': epoch,
 	            'model_state_dict': model.state_dict(),
