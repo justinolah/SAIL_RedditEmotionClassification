@@ -111,6 +111,12 @@ def main():
 	print(mask)
 
 	output, attention = model(seq.to(device), mask.to(device))
+
+	output = output.cpu()
+	attention = attention.cpu()
+
+	output = (output > 0.5).int()
+
 	print(output)
 	print(attention)
 	return
