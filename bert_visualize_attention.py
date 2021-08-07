@@ -119,6 +119,7 @@ def main():
 
 	print(output)
 	print(attention)
+	print(attention.size())
 	return
 
 
