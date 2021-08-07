@@ -110,10 +110,10 @@ def main():
 	print(seq)
 	print(mask)
 
-	output, attention = model(seq[0], mask[0])
+	output, attention = model(seq.to(device), mask.to(device))
 	print(output)
 	print(attention)
-
+	return
 
 
 	
