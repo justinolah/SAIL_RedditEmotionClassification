@@ -420,6 +420,7 @@ def main():
 		print("Dev Macro F1:", f1_dev, "\n")
 
 		if epoch == 0 or np.argmax(devF1) == epoch:
+			print("saving checkpoint...")
 			torch.save({
 	            'epoch': epoch,
 	            'model_state_dict': model.state_dict(),
