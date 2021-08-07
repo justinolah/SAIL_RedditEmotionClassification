@@ -112,8 +112,8 @@ def main():
 
 	output, attention = model(seq.to(device), mask.to(device))
 
+	attention = attention[-1].cpu()
 	output = output.cpu()
-	attention = attention.cpu()
 
 	output = (output > 0.5).int()
 
