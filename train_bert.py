@@ -184,8 +184,10 @@ def main():
 	devLoader = DataLoader(dev_set, batch_size=batch_size)
 
 	if grouping is None:
-		#pos_weight = torch.sqrt(torch.div((len(train.labels) - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0))).to(device)
-		pos_weight = 8 * torch.ones(len(emotions)).to(device)
+		print(torch.sum(torch.tensor(train.labels),0))
+		pos_weight = torch.ceil(torch.div((5000 - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0))).to(device)
+		#pos_weight = torch.ceil(torch.div((len(train.labels) - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0))).to(device)
+		#pos_weight = 8 * torch.ones(len(emotions)).to(device)
 	else:
 		pos_weight = None
 	
