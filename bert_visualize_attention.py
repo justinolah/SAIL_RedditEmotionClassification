@@ -120,31 +120,33 @@ def main():
 	softmax = nn.Softmax(dim=0)
 
 	output, attention = model(seq.to(device), mask.to(device))
+	attention = attention.cpu()
+	#attention.size() -> 1,12,128,128
 
 	length = torch.sum(mask)
-	attention = attention[-1].cpu() #take first layer
 	output = output.cpu()
 
 	output = (output > 0.5).int()
 
 	print(output)
-	#attention.size() -> 1,12,128,128
+	
+	#layer = attention[-1]
+	for layer in attention:
+		att = torch.zeros(len(tokens))
 
-	att = torch.zeros(len(tokens))
+		for i in range(12):
+			head_i = layer[0,i,:length,:length]
 
-	for i in range(12):
-		head_i = attention[0,i,:length,:length]
+			vec = torch.sum(head_i, dim=0)
+			vec = vec[1:-1] #remove first and last spaces for cls and sep tokens
 
-		vec = torch.sum(head_i, dim=0)
-		vec = vec[1:-1] #remove first and last spaces for cls and sep tokens
+			vec = softmax(vec)
+			vec = vec.detach()
 
-		vec = softmax(vec)
-		vec = vec.detach()
+			att += vec
 
-		att += vec
-
-	att /= 12
-	string += generate(tokens, att, 'red')
+		att /= 12
+		string += generate(tokens, att, 'red')
 
 	with open("attention.tex",'w') as f:
 		f.write(r'''\documentclass{article}
