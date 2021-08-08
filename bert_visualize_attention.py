@@ -50,6 +50,7 @@ def generate(text_list, attention_list, color='red', rescale_value = True):
 	for idx in range(word_num):
 		string += "\\colorbox{%s!%s}{"%(color, attention_list[idx])+"\\strut " + text_list[idx]+"} "
 	string += "\n}}}\n\\end{CJK*}\n"
+	string += '''\\'''
 
 	return string
 
@@ -142,6 +143,15 @@ def main():
 		vec = vec.detach()
 
 		string += generate(tokens, vec, 'red')
+
+	for i in range(12):
+		head_i = attention[0,i,:length,:length]
+
+		vec = torch.sum(head_i, dim=1)
+		vec = softmax(vec)
+		vec = vec.detach()
+
+		string += generate(tokens, vec, 'blue')
 
 	with open("attention.tex",'w') as f:
 		f.write(r'''\documentclass{article}
