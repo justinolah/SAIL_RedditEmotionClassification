@@ -89,7 +89,15 @@ def main():
 
 	max_length = 128
 
-	texts = ["As an anesthesia resident this made me blow air out my nose at an accelerated rate for several seconds. Take your damn upvote you bastard."]
+	texts = [
+		"As an anesthesia resident this made me blow air out my nose at an accelerated rate for several seconds. Take your damn upvote you bastard.",
+		"What's that like? Like what's the thought process? I dunno. I know what's a weird question..i just can't imagine",
+		"> one of the better diss tracks out there Lol okay",
+		"[NAME]... I'm sorry. This is just wrong. I, can't.",
+		"You're in luck!",
+		":) thank you!",
+		"That made me smile. Thank you!! And yes, definitely replacing her on my reference list lol. ",
+	]
 
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 	bert = BertModel.from_pretrained('bert-base-uncased')
@@ -107,56 +115,60 @@ def main():
 		truncation=True
 	)
 
-	seq = torch.tensor(tokens['input_ids'])
-	mask = torch.tensor(tokens['attention_mask'])
+	seqs = torch.tensor(tokens['input_ids'])
+	masks = torch.tensor(tokens['attention_mask'])
 
-	tokens = tokenizer.convert_ids_to_tokens(seq[0])
-	tokens = [token for token in tokens if token not in ['[PAD]','[CLS]','[SEP]']]
-	sentence = " ".join(tokens)
-	print(sentence)
+	for i in range(len(texts)):
+		seq = seqs[i]
+		mask = masks[i]
+		tokens = tokenizer.convert_ids_to_tokens(seq)
+		tokens = [token for token in tokens if token not in ['[PAD]','[CLS]','[SEP]']]
+		sentence = " ".join(tokens)
+		print(sentence)
 
-	length = len(tokens)
+		length = len(tokens)
 
-	softmax = nn.Softmax(dim=0)
+		softmax = nn.Softmax(dim=0)
 
-	output, attention = model(seq.to(device), mask.to(device))
-	#attention.size() -> 1,12,128,128
+		output, attention = model(seq.to(device), mask.to(device))
+		#attention.size() -> 1,12,128,128
 
-	length = torch.sum(mask)
-	output = output.cpu()
+		length = torch.sum(mask)
+		output = output.cpu()
 
-	output = (output > 0.5).int()
+		output = (output > 0.5).int()
 
-	print(output)
-	
-	#layer = attention[-1]
-	for layer in attention:
-		layer = layer.cpu()
-		att = torch.zeros(len(tokens))
+		print(output)
+		
+		#layer = attention[-1]
+		for layer in attention:
+			layer = layer.cpu()
+			att = torch.zeros(len(tokens))
 
-		for i in range(12):
-			head_i = layer[0,i,:length,:length]
+			for i in range(12):
+				head_i = layer[0,i,:length,:length]
 
-			vec = torch.sum(head_i, dim=0)
-			vec = vec[1:-1] #remove first and last spaces for cls and sep tokens
+				vec = torch.sum(head_i, dim=0)
+				vec = vec[1:-1] #remove first and last spaces for cls and sep tokens
 
-			vec = softmax(vec)
-			vec = vec.detach()
+				vec = softmax(vec)
+				vec = vec.detach()
 
-			att += vec
+				att += vec
 
-		att /= 12
-		string += generate(tokens, att, 'red')
+			att /= 12
+			string += generate(tokens, att, 'red')
+			string += "\n\\clearpage\n"
 
 	with open("attention.tex",'w') as f:
 		f.write(r'''\documentclass{article}
-\usepackage[utf8]{inputenc}
-\usepackage{color}
-\usepackage{tcolorbox}
-\usepackage{CJK}
-\usepackage{adjustbox}
-\tcbset{width=0.9\textwidth,boxrule=0pt,colback=red,arc=0pt,auto outer arc,left=0pt,right=0pt,boxsep=5pt}
-\begin{document}''')
+			\usepackage[utf8]{inputenc}
+			\usepackage{color}
+			\usepackage{tcolorbox}
+			\usepackage{CJK}
+			\usepackage{adjustbox}
+			\tcbset{width=0.9\textwidth,boxrule=0pt,colback=red,arc=0pt,auto outer arc,left=0pt,right=0pt,boxsep=5pt}
+			\begin{document}''')
 
 		f.write(string)
 
