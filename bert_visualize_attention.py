@@ -136,6 +136,7 @@ def main():
 
 	vec = torch.sum(head0, dim=0)
 	vec = softmax(vec)
+	vec = vec.detach()
 	print(vec)
 
 	color = 'red'
