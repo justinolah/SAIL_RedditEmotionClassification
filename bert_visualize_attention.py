@@ -108,10 +108,15 @@ def main():
 	seq = torch.tensor(tokens['input_ids'])
 	mask = torch.tensor(tokens['attention_mask'])
 
-	print(" ".join(tokenizer.convert_ids_to_tokens(seq[0], skip_special_tokens=True)))
+	tokens = tokenizer.convert_ids_to_tokens(seq[0], skip_special_tokens=True)
+	print(" ".join(tokens))
+
+	length = len(tokens)
 
 	print(seq)
 	print(mask)
+
+	softmax = nn.Softmax(dim=1)
 
 	output, attention = model(seq.to(device), mask.to(device))
 
@@ -123,6 +128,12 @@ def main():
 	print(output)
 	print(attention)
 	print(attention.size())
+
+
+	vec = torch.sum(attention, dim=0)
+	vec = softmax(vec)
+	print(vec)
+
 	return
 
 
