@@ -74,6 +74,8 @@ def clean_word(word_list):
 
 
 def main():
+	string = ""
+
 	if torch.cuda.is_available():
 		print("Using cuda...")
 		device = torch.device("cuda")
@@ -132,16 +134,14 @@ def main():
 	print(attention)
 	print(attention.size())
 
-	head0 = attention[0,0,:length,:length]
+	for i in range(12):
+		head_i = attention[0,i,:length,:length]
 
-	vec = torch.sum(head0, dim=0)
-	vec = softmax(vec)
-	vec = vec.detach()
-	print(vec)
+		vec = torch.sum(head_i, dim=0)
+		vec = softmax(vec)
+		vec = vec.detach()
 
-	color = 'red'
-	string = generate(tokens, vec, color)
-
+		string += generate(tokens, vec, 'red')
 
 	with open("sample.tex",'w') as f:
 		f.write(r'''\documentclass{article}
