@@ -109,7 +109,10 @@ def main():
 	mask = torch.tensor(tokens['attention_mask'])
 
 	tokens = tokenizer.convert_ids_to_tokens(seq[0])
-	tokens.remove("<PAD>")
+	try:
+		tokens.remove("[PAD]")
+	except:
+		pass
 
 	print(" ".join(tokens))
 
