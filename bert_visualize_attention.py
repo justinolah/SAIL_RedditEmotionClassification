@@ -108,7 +108,7 @@ def main():
 	seq = torch.tensor(tokens['input_ids'])
 	mask = torch.tensor(tokens['attention_mask'])
 
-	print(" ".join(tokenizer.convert_tokens_to_string(seq[0])))
+	print(" ".join(tokenizer.convert_ids_to_tokens(seq[0], skip_special_tokens=True)))
 
 	print(seq)
 	print(mask)
