@@ -137,13 +137,13 @@ def main():
 	for i in range(12):
 		head_i = attention[0,i,:length,:length]
 
-		vec = torch.sum(head_i, dim=0)
+		vec = torch.sum(head_ig, dim=0)
 		vec = softmax(vec)
 		vec = vec.detach()
 
 		string += generate(tokens, vec, 'red')
 
-	with open("sample.tex",'w') as f:
+	with open("attention.tex",'w') as f:
 		f.write(r'''\documentclass{article}
 \usepackage[utf8]{inputenc}
 \usepackage{color}
