@@ -119,8 +119,9 @@ def main():
 	masks = torch.tensor(tokens['attention_mask'])
 
 	for i in range(len(texts)):
-		seq = seqs[i]
-		mask = masks[i]
+		seq = torch.tensor(seqs[i])
+		mask = torch.tensor(masks[i])
+
 		tokens = tokenizer.convert_ids_to_tokens(seq)
 		tokens = [token for token in tokens if token not in ['[PAD]','[CLS]','[SEP]']]
 		sentence = " ".join(tokens)
@@ -130,7 +131,7 @@ def main():
 
 		softmax = nn.Softmax(dim=0)
 
-		output, attention = model(seq.to(device), mask.to(device))
+		output, attention = model(seq.unsqueeze_(0).to(device), mask.unsqueeze_(0).to(device))
 		#attention.size() -> 1,12,128,128
 
 		length = torch.sum(mask)
@@ -158,7 +159,8 @@ def main():
 
 			att /= 12
 			string += generate(tokens, att, 'red')
-			string += "\n\\clearpage\n"
+		
+		string += "\\clearpage\n"
 
 	with open("attention.tex",'w') as f:
 		f.write(r'''\documentclass{article}
@@ -173,6 +175,7 @@ def main():
 		f.write(string)
 
 		f.write(r'''\end{document}''')
+		f.write("\n")
 
 if __name__ == '__main__':
 	main()
