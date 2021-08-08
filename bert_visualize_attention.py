@@ -49,8 +49,7 @@ def generate(text_list, attention_list, color='red', rescale_value = True):
 	string = r'''\begin{CJK*}{UTF8}{gbsn} {\setlength{\fboxsep}{0pt}\colorbox{white!0}{\parbox{0.9\textwidth}{'''+"\n"
 	for idx in range(word_num):
 		string += "\\colorbox{%s!%s}{"%(color, attention_list[idx])+"\\strut " + text_list[idx]+"} "
-	string += "\n}}}\n\\end{CJK*}\n"
-	string += '''\\'''
+	string += "\n}}}\n\\end{CJK*}\n\n"
 
 	return string
 
