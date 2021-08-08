@@ -120,7 +120,6 @@ def main():
 	softmax = nn.Softmax(dim=0)
 
 	output, attention = model(seq.to(device), mask.to(device))
-	attention = attention.cpu()
 	#attention.size() -> 1,12,128,128
 
 	length = torch.sum(mask)
@@ -132,6 +131,7 @@ def main():
 	
 	#layer = attention[-1]
 	for layer in attention:
+		layer = layer.cpu()
 		att = torch.zeros(len(tokens))
 
 		for i in range(12):
