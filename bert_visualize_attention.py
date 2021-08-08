@@ -111,7 +111,7 @@ def main():
 	mask = torch.tensor(tokens['attention_mask'])
 
 	tokens = tokenizer.convert_ids_to_tokens(seq[0])
-	tokens = [token for token in tokens if token != '[PAD]']
+	tokens = [token for token in tokens if token not in ['[PAD]','[CLS]','[SEP]']]
 	sentence = " ".join(tokens)
 	print(sentence)
 
@@ -138,19 +138,11 @@ def main():
 		head_i = attention[0,i,:length,:length]
 
 		vec = torch.sum(head_i, dim=0)
+		vec = vec[1:-1] #remove first and last spaces for cls and sep tokens
 		vec = softmax(vec)
 		vec = vec.detach()
 
 		string += generate(tokens, vec, 'red')
-
-	for i in range(12):
-		head_i = attention[0,i,:length,:length]
-
-		vec = torch.sum(head_i, dim=1)
-		vec = softmax(vec)
-		vec = vec.detach()
-
-		string += generate(tokens, vec, 'blue')
 
 	with open("attention.tex",'w') as f:
 		f.write(r'''\documentclass{article}
