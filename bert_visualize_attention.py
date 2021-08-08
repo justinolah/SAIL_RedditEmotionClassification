@@ -137,7 +137,7 @@ def main():
 	for i in range(12):
 		head_i = attention[0,i,:length,:length]
 
-		vec = torch.sum(head_ig, dim=0)
+		vec = torch.sum(head_i, dim=0)
 		vec = softmax(vec)
 		vec = vec.detach()
 
