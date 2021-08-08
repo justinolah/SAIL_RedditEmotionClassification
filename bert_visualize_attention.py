@@ -116,10 +116,11 @@ def main():
 	print(seq)
 	print(mask)
 
-	softmax = nn.Softmax(dim=1)
+	softmax = nn.Softmax(dim=0)
 
 	output, attention = model(seq.to(device), mask.to(device))
 
+	length = torch.sum(mask)
 	attention = attention[-1].cpu()
 	output = output.cpu()
 
@@ -129,8 +130,9 @@ def main():
 	print(attention)
 	print(attention.size())
 
-
-	vec = torch.sum(attention[0,0,:,:], dim=0)
+	head0 = attention[0,0,:length,:length]
+	
+	vec = torch.sum(head0, dim=0)
 	vec = softmax(vec)
 	print(vec)
 
