@@ -83,6 +83,7 @@ def main():
 
 	emotions = getEmotions()
 	emotions.remove("neutral")
+	print(emotions)
 
 	max_length = 128
 
@@ -106,6 +107,8 @@ def main():
 
 	seq = torch.tensor(tokens['input_ids'])
 	mask = torch.tensor(tokens['attention_mask'])
+
+	print(tokenizer.convert_tokens_to_string(seq).join(" "))
 
 	print(seq)
 	print(mask)
