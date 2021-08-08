@@ -108,7 +108,9 @@ def main():
 	seq = torch.tensor(tokens['input_ids'])
 	mask = torch.tensor(tokens['attention_mask'])
 
-	tokens = tokenizer.convert_ids_to_tokens(seq[0], skip_special_tokens=True)
+	tokens = tokenizer.convert_ids_to_tokens(seq[0])
+	tokens.remove("<PAD>")
+
 	print(" ".join(tokens))
 
 	length = len(tokens)
@@ -131,7 +133,7 @@ def main():
 	print(attention.size())
 
 	head0 = attention[0,0,:length,:length]
-	
+
 	vec = torch.sum(head0, dim=0)
 	vec = softmax(vec)
 	print(vec)
