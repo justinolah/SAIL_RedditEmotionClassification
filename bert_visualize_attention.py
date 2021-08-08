@@ -109,12 +109,9 @@ def main():
 	mask = torch.tensor(tokens['attention_mask'])
 
 	tokens = tokenizer.convert_ids_to_tokens(seq[0])
-	try:
-		tokens.remove("[PAD]")
-	except:
-		pass
-
-	print(" ".join(tokens))
+	tokens = [token for token in tokens if token != '[PAD]']
+	sentence = " ".join(tokens)
+	print(sentence)
 
 	length = len(tokens)
 
@@ -141,16 +138,8 @@ def main():
 	vec = softmax(vec)
 	print(vec)
 
-	return
-
-
-	
-	words = sent.split()
-	word_num = len(words)
-	attention = [np.random.rand() for x in range(word_num)]
-	random.shuffle(attention)
 	color = 'red'
-	string = generate(words, attention, color)
+	string = generate(tokens, vec, color)
 
 
 	with open("sample.tex",'w') as f:
