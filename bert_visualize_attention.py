@@ -130,7 +130,7 @@ def main():
 	print(attention.size())
 
 
-	vec = torch.sum(attention, dim=0)
+	vec = torch.sum(attention[0,0,:,:], dim=0)
 	vec = softmax(vec)
 	print(vec)
 
