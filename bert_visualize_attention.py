@@ -53,8 +53,6 @@ def generate(text_list, attention_list, color='red', rescale_value = True):
 
 	return string
 
-
-
 def rescale(input_list):
 	the_array = np.asarray(input_list)
 	the_max = np.max(the_array)
@@ -111,17 +109,7 @@ def main():
 	]
 
 	data = data[data.id.isin(entries)]
-
-	texts = [
-		"Germany is the first country in Europe I've been to! Planning on Ireland next, and maybe Croatia(hoping for Germany again, though :) )",
-		"What's that like? Like what's the thought process? I dunno. I know what's a weird question..i just can't imagine",
-		"> one of the better diss tracks out there Lol okay",
-		"[NAME]... I'm sorry. This is just wrong. I, can't.",
-		"I do feel sorry for the squirrel, but I wouldn't say the dog is a jerk for acting on natural instinct.",
-		"You're in luck!",
-		":) thank you!",
-		"That made me smile. Thank you!! And yes, definitely replacing her on my reference list lol. ",
-	]
+	print(data)
 
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 	bert = BertModel.from_pretrained('bert-base-uncased')
