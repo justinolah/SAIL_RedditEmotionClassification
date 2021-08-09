@@ -98,7 +98,16 @@ def main():
 		"edjd969",
 		"eefbq4h",
 		"ee66rq1",
-		"eeyda6m"
+		"eeyda6m",
+		"efba01h",
+		"edclugt",
+		"edf9nth",
+		"eebfurv",
+		"eea5j35",
+		"ef6nz0w",
+		"eecefqy",
+		"edqdi7q",
+		"ef1e1yw",
 	]
 
 	data = data[data.id.isin(entries)]
