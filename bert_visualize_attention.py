@@ -85,15 +85,30 @@ def main():
 
 	emotions = getEmotions()
 	emotions.remove("neutral")
-	print(emotions)
+
+	data = getTestSet()
 
 	max_length = 128
 
+	entries = [
+		"edmxdm7",
+		"ed8llym",
+		"eey7nln",
+		"effn3uq",
+		"edjd969",
+		"eefbq4h",
+		"ee66rq1",
+		"eeyda6m"
+	]
+
+	data = data[data.id.isin(entries)]
+
 	texts = [
-		"As an anesthesia resident this made me blow air out my nose at an accelerated rate for several seconds. Take your damn upvote you bastard.",
+		"Germany is the first country in Europe I've been to! Planning on Ireland next, and maybe Croatia(hoping for Germany again, though :) )",
 		"What's that like? Like what's the thought process? I dunno. I know what's a weird question..i just can't imagine",
 		"> one of the better diss tracks out there Lol okay",
 		"[NAME]... I'm sorry. This is just wrong. I, can't.",
+		"I do feel sorry for the squirrel, but I wouldn't say the dog is a jerk for acting on natural instinct.",
 		"You're in luck!",
 		":) thank you!",
 		"That made me smile. Thank you!! And yes, definitely replacing her on my reference list lol. ",
@@ -109,7 +124,7 @@ def main():
 	model.eval()
 
 	tokens = tokenizer.batch_encode_plus(
-		texts,
+		data.text.tolist(),
 		max_length = max_length,
 		padding='max_length',
 		truncation=True
@@ -117,15 +132,15 @@ def main():
 
 	seqs = torch.tensor(tokens['input_ids'])
 	masks = torch.tensor(tokens['attention_mask'])
+	labels = data.labels.tolist()
 
-	for i in range(len(texts)):
+	for i in range(len(data)):
 		seq = torch.tensor(seqs[i])
 		mask = torch.tensor(masks[i])
 
 		tokens = tokenizer.convert_ids_to_tokens(seq)
 		tokens = [token for token in tokens if token not in ['[PAD]','[CLS]','[SEP]']]
-		sentence = " ".join(tokens)
-		print(sentence)
+		#sentence = " ".join(tokens)
 
 		length = len(tokens)
 
@@ -139,7 +154,11 @@ def main():
 
 		output = (output > 0.5).int()
 
-		print(output)
+		actual_labels = [emotions[int(label)] for label in labels[i].split(',') if int(label) < len(emotions)]
+		predicted_labels = [emotions[index] for index, val in enumerate(output[0].tolist()) if val == 1]
+
+		string += r'''\textbf{Actual Labels:} ''' + ", ".join(actual_labels) + r'''\\''' + "\n"
+		string += r'''\textbf{Predicted Labels:} ''' + ", ".join(predicted_labels) + r'''\\''' + "\n"
 		
 		#layer = attention[-1]
 		for layer in attention:
@@ -167,8 +186,10 @@ def main():
 			\usepackage[utf8]{inputenc}
 			\usepackage{color}
 			\usepackage{tcolorbox}
+			\usepackage[document]{ragged2e}
 			\usepackage{CJK}
 			\usepackage{adjustbox}
+			\usepackage{textpos}
 			\tcbset{width=0.9\textwidth,boxrule=0pt,colback=red,arc=0pt,auto outer arc,left=0pt,right=0pt,boxsep=5pt}
 			\begin{document}''')
 
