@@ -116,51 +116,6 @@ def getEkmanDict():
 	with open(EKMAN_DICT_FILE) as json_file:
 		return json.load(json_file)
 
-#depreciated
-def getGlove():
-	print("Getting pretrained glove embedding model...")
-	embeddingSize = 100
-	words = []
-	idx = 0
-	word2idx = {}
-	vectors = []
-
-	with open(GLOVE_FILE) as f:
-		for line in f:
-			word, coefs = line.split(maxsplit=1)
-			coefs = np.fromstring(coefs, "f", sep=" ")
-			words.append(word)
-			word2idx[word] = idx
-			idx += 1
-			vectors.append(coefs)
-	print("Loaded.\n")
-	return vectors, words, word2idx, embeddingSize
-
-#depreciated
-def getGloveVector(text, gloveMap, maxLength, wordVecLength):
-	words = text.split()
-	vec = []
-	word_count = 0
-
-	for word in words:
-		if word_count == maxLength:
-			break
-		wordVec = gloveMap.get(word)
-		if wordVec is not None:
-			vec += list(wordVec)
-		else:
-			vec += list([0] * wordVecLength)
-		
-		word_count += 1
-
-	while word_count < maxLength:
-		vec += list([0] * wordVecLength)
-		word_count += 1
-
-	assert len(vec) == maxLength * wordVecLength
-
-	return vec
-
 def getEmotionIndexMap(oldEmotions, emotionMap):
 	newEmotionMap = {}
 	for i, (key, value) in enumerate(emotionMap.items()):
