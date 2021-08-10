@@ -106,6 +106,16 @@ def main():
 		"eecefqy",
 		"edqdi7q",
 		"ef1e1yw",
+		"ee8utmi",
+		"edi0iyi",
+		"edckc5y",
+		"efh2ure",
+		"ef32sdd",
+		"eetwv0j",
+		"eez33s9",
+		"ee1kg09",
+		"edzv8zv",
+		"ed47fl3",
 	]
 
 	data = data[data.id.isin(entries)]
