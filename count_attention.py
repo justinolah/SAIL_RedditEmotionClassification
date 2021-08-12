@@ -111,11 +111,10 @@ def main():
 		att /= 12
 		att = att.tolist()
 
-		for label in labels[i].split(','):
-			emot = emotions[int(label)]
-			counts[emot].update(tokens)
+		for label in actual_labels:
+			counts[label].update(tokens)
 			for j in range(len(tokens)):
-				word_scores[emot][tokens[j]] += att[j]
+				word_scores[label][tokens[j]] += att[j]
 
 	avg_scores = word_scores.copy()
 
