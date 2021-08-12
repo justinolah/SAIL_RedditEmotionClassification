@@ -97,10 +97,10 @@ def main():
 		
 		att = torch.zeros(len(tokens))
 
-		for i in range(12):
-			head_i = layer[0,i,:length,:length]
+		for j in range(12):
+			head_i = layer[0,j,:length,:length]
 
-			vec = torch.sum(head_i, dim=0)
+			vec = torch.sum(head_j, dim=0)
 			vec = vec[1:-1] #remove first and last spaces for cls and sep tokens
 
 			vec = softmax(vec)
@@ -114,8 +114,8 @@ def main():
 		for label in labels[i].split(','):
 			emot = emotions[int(label)]
 			counts[emot].update(tokens)
-			for i in range(len(tokens)):
-				word_scores[emot][tokens[i]] += att[i]
+			for j in range(len(tokens)):
+				word_scores[emot][tokens[j]] += att[j]
 
 	avg_scores = word_scores.copy()
 
