@@ -71,7 +71,7 @@ def main():
 	masks = torch.tensor(tokens['attention_mask'])
 	labels = data.labels.tolist()
 
-	for i in tqdm(range(5)): #tqdm(range(len(data))):
+	for i in tqdm(range(len(data))):
 		seq = torch.tensor(seqs[i])
 		mask = torch.tensor(masks[i])
 
