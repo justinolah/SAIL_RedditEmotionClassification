@@ -3,6 +3,7 @@ import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from tqdm import tqdm
 from helpers import *
 from collections import Counter, defaultdict
 
@@ -70,7 +71,7 @@ def main():
 	masks = torch.tensor(tokens['attention_mask'])
 	labels = data.labels.tolist()
 
-	for i in range(len(data)):
+	for i in tqdm(range(len(data))):
 		seq = torch.tensor(seqs[i])
 		mask = torch.tensor(masks[i])
 
@@ -117,7 +118,7 @@ def main():
 				word_scores[emot][tokens[i]] += att[i]
 
 	avg_scores = word_scores.copy()
-	
+
 	for emotion in emotions:
 		for (word, count) in counts[emotion]:
 			avg_scores[emotion][word] /= count
