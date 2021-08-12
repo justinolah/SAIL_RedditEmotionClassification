@@ -98,9 +98,9 @@ def main():
 		att = torch.zeros(len(tokens))
 
 		for j in range(12):
-			head_i = layer[0,j,:length,:length]
+			head = layer[0,j,:length,:length]
 
-			vec = torch.sum(head_j, dim=0)
+			vec = torch.sum(head, dim=0)
 			vec = vec[1:-1] #remove first and last spaces for cls and sep tokens
 
 			vec = softmax(vec)
