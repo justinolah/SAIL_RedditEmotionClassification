@@ -122,7 +122,9 @@ def main():
 	for emotion in emotions:
 		for word in counts[emotion]:
 			avg_scores[emotion][word] /= counts[emotion][word]
+		print("Emotion:")
 		print(avg_scores[emotion])
+		print("")
 
 
 if __name__ == '__main__':
