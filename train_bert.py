@@ -118,7 +118,7 @@ def main():
 	epochs = 5
 	batch_size = 16
 	max_length = 128
-	weight_decay = 0.0001
+	weight_decay = 0
 	lr_decay = 0.95
 	threshold = 0.5
 	lr = 5e-5
@@ -184,8 +184,8 @@ def main():
 	devLoader = DataLoader(dev_set, batch_size=batch_size)
 
 	if grouping is None:
-		pos_weight = torch.ceil(torch.div((5000 - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0))).to(device)
-		#pos_weight = torch.ceil(torch.div((len(train.labels) - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0))).to(device)
+		#pos_weight = torch.ceil(torch.div((5000 - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0))).to(device)
+		pos_weight = torch.sqrt(torch.div((len(train.labels) - torch.sum(torch.tensor(train.labels),0)), torch.sum(torch.tensor(train.labels),0))).to(device)
 		#pos_weight = 8 * torch.ones(len(emotions)).to(device)
 	else:
 		pos_weight = None
