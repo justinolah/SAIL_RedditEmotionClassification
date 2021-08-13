@@ -33,6 +33,20 @@ class BERT_Model(nn.Module):
 		out = self.fc(cls_hs)
 		return out, attentions
 
+def KmaxelementsDict(dict, k):
+	kdict = {}
+
+	for i in range(0, N): 
+		maxword = ""
+		maxval= 0
+		
+		for (word, val) in dict.iteritems():    
+			if val > maxval:
+				maxword, maxval = word, val
+
+		kdict[word] = val
+		
+	return kdict 
 
 def main():
 	if torch.cuda.is_available():
@@ -120,16 +134,22 @@ def main():
 
 	avg_scores = word_scores.copy()
 
+	max_words = 100
+
+	freq = {}
+
 	for emotion in emotions:
 		for word in counts[emotion]:
 			avg_scores[emotion][word] /= counts[emotion][word]
-			avg_scores[emotion][word] = int(1000 * avg_scores[emotion][word])
+			avg_scores[emotion][word] = int(1000 * avg_scores[emotion][word]) #convert average attention to int because wordcloud needs frequencies
+
+		freq[emotion] = KmaxelementsDict(avg_scores[emotion], max_words)
 		print(f"{emotion}:")
-		print(avg_scores[emotion])
+		print(freq[emotion])
 		print("")
 
-	wc = WordCloud(background_color="white", max_words=100, collocations=False)
-	wc.generate_from_frequencies(avg_scores.fear)
+	wc = WordCloud(background_color="white", max_words=max_words, collocations=False)
+	wc.generate_from_frequencies(freq["fear"])
 
 	plt.axis("off")
 	plt.imshow(wc, interpolation="bilinear")
