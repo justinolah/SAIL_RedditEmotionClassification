@@ -7,6 +7,8 @@ from tqdm import tqdm
 from helpers import *
 from collections import Counter, defaultdict
 
+from wordcloud import WordCloud
+
 from transformers import BertModel, BertTokenizerFast
 
 seed_value=42
@@ -111,7 +113,7 @@ def main():
 		att /= 12
 		att = att.tolist()
 
-		for label in actual_labels:
+		for label in predicted_labels:
 			counts[label].update(tokens)
 			for j in range(len(tokens)):
 				word_scores[label][tokens[j]] += att[j]
@@ -121,10 +123,17 @@ def main():
 	for emotion in emotions:
 		for word in counts[emotion]:
 			avg_scores[emotion][word] /= counts[emotion][word]
+			avg_scores[emotion][word] = int(1000 * avg_scores[emotion][word])
 		print(f"{emotion}:")
 		print(avg_scores[emotion])
 		print("")
 
+	wc = WordCloud(background_color="white", max_words=100, collocations=False)
+	wc.generate_from_frequencies(avg_scores.fear)
+
+	plt.axis("off")
+	plt.imshow(wc, interpolation="bilinear")
+	plt.savefig("plots/attention_fear.png", format="png")
 
 if __name__ == '__main__':
 	main()
