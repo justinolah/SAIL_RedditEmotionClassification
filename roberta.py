@@ -33,6 +33,8 @@ class RoBERTa_Model(nn.Module):
 
 	def forward(self, sent_id, mask):
 		cls_hs = self.bert(sent_id, attention_mask=mask, return_dict=False)
+		print(cls_hs)
+		print(cls_hs.size())
 		out = self.fc(cls_hs)
 		return out
 
