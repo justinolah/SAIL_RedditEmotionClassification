@@ -36,7 +36,7 @@ class BERT_Model(nn.Module):
 def KmaxelementsDict(dict, k):
 	kdict = {}
 
-	for i in range(0, N): 
+	for i in range(0, k): 
 		maxword = ""
 		maxval= 0
 		
@@ -144,7 +144,7 @@ def main():
 			avg_scores[emotion][word] = int(1000 * avg_scores[emotion][word]) #convert average attention to int because wordcloud needs frequencies
 
 		freq[emotion] = KmaxelementsDict(avg_scores[emotion], max_words)
-		print(f"{emotion}: ")
+		print(f"{emotion}:")
 		print(freq[emotion])
 		print("")
 
