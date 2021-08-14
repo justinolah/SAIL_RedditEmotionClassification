@@ -40,7 +40,7 @@ def KmaxelementsDict(dict, k):
 		maxword = ""
 		maxval= 0
 		
-		for (word, val) in dict.iteritems():    
+		for (word, val) in dict.items():    
 			if val > maxval:
 				maxword, maxval = word, val
 
