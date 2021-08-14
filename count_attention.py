@@ -144,7 +144,7 @@ def main():
 			avg_scores[emotion][word] = int(1000 * avg_scores[emotion][word]) #convert average attention to int because wordcloud needs frequencies
 
 		freq[emotion] = KmaxelementsDict(avg_scores[emotion], max_words)
-		print(f"{emotion}:")
+		print(f"{emotion}: ")
 		print(freq[emotion])
 		print("")
 
