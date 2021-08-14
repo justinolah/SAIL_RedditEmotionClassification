@@ -189,7 +189,7 @@ def main():
 	#initialize model
 	bert = RobertaModel.from_pretrained('roberta-base')
 
-	model = RoBERTa(bert, len(emotions))
+	model = RoBERTa_Modelbert, len(emotions))
 	model = model.to(device)
 	wandb.watch(model)
 
