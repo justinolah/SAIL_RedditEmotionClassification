@@ -41,7 +41,7 @@ def KmaxelementsDict(dict, k):
 		maxval= 0
 		
 		for (word, val) in dict.items():    
-			if val > maxval and word not in kdict:
+			if val > maxval and word not in kdict and word not in '''[]'`,."()''':
 				maxword, maxval = word, val
 
 		kdict[maxword] = maxval
@@ -140,7 +140,7 @@ def main():
 
 	for emotion in emotions:
 		for word in counts[emotion]:
-			avg_scores[emotion][word] /= counts[emotion][word]
+			#avg_scores[emotion][word] /= counts[emotion][word]
 			avg_scores[emotion][word] = int(1000 * avg_scores[emotion][word]) #convert average attention to int because wordcloud needs frequencies
 
 		freq[emotion] = KmaxelementsDict(avg_scores[emotion], max_words)
@@ -148,12 +148,12 @@ def main():
 		print(freq[emotion])
 		print("")
 
-	wc = WordCloud(background_color="white", max_words=max_words, collocations=False)
-	wc.generate_from_frequencies(freq["fear"])
+		wc = WordCloud(background_color="white", max_words=max_words, collocations=False)
+		wc.generate_from_frequencies(freq[emotion])
 
-	plt.axis("off")
-	plt.imshow(wc, interpolation="bilinear")
-	plt.savefig("plots/attention_fear.png", format="png")
+		plt.axis("off")
+		plt.imshow(wc, interpolation="bilinear")
+		plt.savefig(f"plots/attention/{emotion}.png", format="png")
 
 if __name__ == '__main__':
 	main()
