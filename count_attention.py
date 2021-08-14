@@ -41,7 +41,7 @@ def KmaxelementsDict(dict, k):
 		maxval= 0
 		
 		for (word, val) in dict.items():    
-			if val > maxval and word not in kdict and word not in '''[]'`,."()''':
+			if val > maxval and word not in kdict and word not in '''[]'`’-*/\\:;~%,."()''':
 				maxword, maxval = word, val
 
 		kdict[maxword] = maxval
