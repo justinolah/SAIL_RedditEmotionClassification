@@ -20,7 +20,7 @@ torch.cuda.manual_seed_all(seed_value)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-DIR = "SemEval2018-Task1-all-data/English/E-C/"
+DIR = "SemEval2018-Task1-all-data/English/E-c/"
 
 TRAIN_DIR = "2018-E-c-En-train.txt"
 TEST_DIR = "2018-E-c-En-test-gold.txt"
