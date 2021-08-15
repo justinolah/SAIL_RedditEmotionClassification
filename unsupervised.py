@@ -89,8 +89,8 @@ def main():
 	model = BERT_Model(bert, len(emotions))
 	model = model.to(device)
 
-	bestCheckpoint = torch.load("bert.pt")
-	model.load_state_dict(bestCheckpoint['model_state_dict'])
+	checkpoint = torch.load("bert_best.pt")
+	model.load_state_dict(checkpoint['model_state_dict'])
 	model.eval()
 
 	emotion_input = tokenizer.batch_encode_plus(
