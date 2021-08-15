@@ -28,9 +28,9 @@ DEV_DIR = "2018-E-c-En-dev.txt"
 
 SEMEVAL_EMOTIONS_FILE = "data/SemEvalEmotions.txt"
 
-def makeBERTDataset(data, tokenizer, max_length, emotions):
+def makeBERTDatasetSemEval(data, tokenizer, max_length, emotions):
 	tokens = tokenizer.batch_encode_plus(
-		data.text.tolist(),
+		data.Tweet.tolist(),
 		max_length = max_length,
 		padding='max_length',
 		truncation=True
@@ -81,7 +81,7 @@ def main():
 	dev = pd.read_csv(DIR + DEV_DIR, sep='\t')
 
 
-	data_set = makeBERTDataset(pd.concat([train, test, dev]), tokenizer, max_length, semEmotions)
+	data_set = makeBERTDatasetSemEval(pd.concat([train, test, dev]), tokenizer, max_length, semEmotions)
 	dataloader = DataLoader(data_set, batch_size=batch_size)
 
 	bert = BertModel.from_pretrained('bert-base-uncased')
