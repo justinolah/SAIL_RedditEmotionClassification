@@ -28,12 +28,7 @@ DEV_DIR = "2018-E-c-En-dev.txt"
 
 SEMEVAL_EMOTIONS_FILE = "data/SemEvalEmotions.txt"
 
-def makeBERTDataset(data, tokenizer, max_length, emotions, new_emotions=None, idx_map=None):
-	if idx_map is None:
-		data.labels = data.labels.apply(lambda x: getYMatrix(x,len(emotions)))
-	else:
-		data.labels = data.labels.apply(lambda x: getYMatrixWithMap(x, len(new_emotions), idx_map))
-
+def makeBERTDataset(data, tokenizer, max_length, emotions):
 	tokens = tokenizer.batch_encode_plus(
 		data.text.tolist(),
 		max_length = max_length,
@@ -43,7 +38,7 @@ def makeBERTDataset(data, tokenizer, max_length, emotions, new_emotions=None, id
 
 	seq = torch.tensor(tokens['input_ids'])
 	mask = torch.tensor(tokens['attention_mask'])
-	y = torch.tensor(data.labels.tolist())
+	y = torch.tensor(data[emotions].values)
 
 	dataset = TensorDataset(seq, mask, y)
 	return dataset
