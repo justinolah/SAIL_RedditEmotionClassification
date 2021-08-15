@@ -1,0 +1,10 @@
+anger
+anticipation
+disgust
+fear
+joy
+love
+optimism
+pessimism
+sadness
+surprise
