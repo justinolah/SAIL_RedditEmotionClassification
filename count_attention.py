@@ -38,7 +38,7 @@ def KmaxelementsDict(dict, k):
 
 	for i in range(0, k): 
 		maxword = ""
-		maxval= 0
+		maxval = 0
 		
 		for (word, val) in dict.items():    
 			if val > maxval and word not in kdict and word not in '''[]'`’-*/\\:;~%,."()''':
@@ -141,14 +141,14 @@ def main():
 	for emotion in emotions:
 		for word in counts[emotion]:
 			#avg_scores[emotion][word] /= counts[emotion][word]
-			avg_scores[emotion][word] = int(1000 * avg_scores[emotion][word]) #convert average attention to int because wordcloud needs frequencies
+			avg_scores[emotion][word] = int(500 * avg_scores[emotion][word]) #convert average attention to int because wordcloud needs frequencies
 
 		freq[emotion] = KmaxelementsDict(avg_scores[emotion], max_words)
 		print(f"{emotion}:")
 		print(freq[emotion])
 		print("")
 
-		wc = WordCloud(background_color="white", max_words=max_words, collocations=False)
+		wc = WordCloud(background_color="white", width=800, height=400, max_words=max_words, collocations=False)
 		wc.generate_from_frequencies(freq[emotion])
 
 		plt.axis("off")
