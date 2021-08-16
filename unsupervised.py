@@ -81,7 +81,8 @@ def main():
 	dev = pd.read_csv(DIR + DEV_DIR, sep='\t')
 
 	all_data = pd.concat([train, test, dev])
-	all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"/\B@\w+/g", "@mention", x))
+	all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
+	all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
 
 	data_set = makeBERTDatasetSemEval(all_data, tokenizer, max_length, semEmotions)
 	dataloader = DataLoader(data_set, batch_size=batch_size)
@@ -122,12 +123,7 @@ def main():
 	vectors = torch.Tensor(len(dataloader), 768)
 	torch.cat(outputs, out=vectors)
 
-	print(vectors)
-	print(vectors.size())
-
 	for i, vec in enumerate(vectors):
-		print(vec.size())
-		print(emotion_vecs.size())
 		similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
 		closest = similarities.argsort(descending=True)
 		index = closest[0]
