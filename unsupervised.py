@@ -3,7 +3,7 @@ from helpers import *
 from transformers import BertModel, BertTokenizerFast
 
 from torch.utils.data import TensorDataset, DataLoader
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, classification_report
 
 from tqdm import tqdm
 
@@ -125,16 +125,18 @@ def main():
 
 	predictions = []
 
+	tweets = all_data.Tweet.tolist()
+
 	for i, vec in enumerate(vectors):
 		similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
 		closest = similarities.argsort(descending=True)
 		if i < 5:
-			print(all_data.Tweet[i].tolist())
+			print(tweets[i])
 			for index in closest:
 				print(f"label: {semEmotions[index]}, similarity: {similarities[index]}") 
 		elif i < 20:
 			index = closest[0]
-			print(all_data.Tweet[i].tolist())
+			print(tweets[i])
 			print(f"actual label: {','.join(['Todo'])}")
 			print(f"label: {semEmotions[index]}, similarity: {similarities[index]}")
 
