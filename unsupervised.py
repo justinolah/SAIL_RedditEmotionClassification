@@ -103,7 +103,7 @@ def main():
 	emotion_ids = torch.tensor(emotion_input['input_ids'])
 	emotion_mask = torch.tensor(emotion_input['attention_mask'])
 
-	emotion_output = model(emotion_ids.to(device), emotion_mask.to(device))
+	emotion_vecs = model(emotion_ids.to(device), emotion_mask.to(device))
 
 	outputs = []	
 	targets = []
@@ -111,7 +111,7 @@ def main():
 	for batch in tqdm(dataloader):
 		seq, mask, labels = batch
 
-		targets.append(labels)
+		targets.append(labels.detach())
 
 		output = model(seq.to(device), mask.to(device))
 		outputs.append(output.detach().cpu())
@@ -122,11 +122,11 @@ def main():
 	print(vectors)
 	print(vectors.size())
 
-
-
-	#similarities = F.cosine_similarity(sentence_rep, label_reps)
-	#closest = similarities.argsort(descending=True)
-
+	for i, ouput in enumerate(outputs):
+		similarities = F.cosine_similarity(output, emotion_vecs)
+		closest = similarities.argsort(descending=True)
+		index = closest[0]
+		print(f"label: {semEmotions[index]}, similarity: {similarities[index]}, actual label: {",".join([])}") #todo actual label
 
 
 if __name__ == '__main__':
