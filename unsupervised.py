@@ -81,6 +81,7 @@ def main():
 	dev = pd.read_csv(DIR + DEV_DIR, sep='\t')
 
 	all_data = pd.concat([train, test, dev])
+	all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"/\B@\w+/g", "@mention", x))
 
 	data_set = makeBERTDatasetSemEval(all_data, tokenizer, max_length, semEmotions)
 	dataloader = DataLoader(data_set, batch_size=batch_size)
