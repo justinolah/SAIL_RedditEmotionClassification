@@ -116,9 +116,11 @@ def main():
 		output = model(seq.to(device), mask.to(device))
 		outputs.append(output.detach().cpu())
 
-	outputs = torch.tensor(outputs)
-	print(outputs)
-	print(outputs.size())
+	vectors = torch.Tensor(len(dataloader), 768)
+	torch.cat(outputs, out=vectors)
+
+	print(vectors)
+	print(vectors.size())
 
 
 
