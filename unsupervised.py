@@ -80,8 +80,7 @@ def main():
 	test = pd.read_csv(DIR + TEST_DIR, sep='\t')
 	dev = pd.read_csv(DIR + DEV_DIR, sep='\t')
 
-	all_data = pd.concat([train, test, dev]),
-
+	all_data = pd.concat([train, test, dev])
 
 	data_set = makeBERTDatasetSemEval(all_data, tokenizer, max_length, semEmotions)
 	dataloader = DataLoader(data_set, batch_size=batch_size)
