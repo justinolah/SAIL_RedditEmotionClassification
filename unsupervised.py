@@ -3,7 +3,7 @@ from helpers import *
 from transformers import BertModel, BertTokenizerFast
 
 from torch.utils.data import TensorDataset, DataLoader
-from sklearn.metrics import f1_score, classification_report
+from sklearn.metrics import classification_report
 
 from tqdm import tqdm
 
@@ -144,6 +144,7 @@ def main():
 		pred[closest[0]] = 1
 		predictions.append(pred)
 
+	targets = np.concatenate(targets)
 	print(classification_report(targets, predictions, target_names=semEmotions, zero_division=0, output_dict=False))
 
 
