@@ -84,6 +84,8 @@ def main():
 	all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
 	all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
 
+	print(f"Number of tweets: {len(all_data)}")
+
 	data_set = makeBERTDatasetSemEval(all_data, tokenizer, max_length, semEmotions)
 	dataloader = DataLoader(data_set, batch_size=batch_size)
 
