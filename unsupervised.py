@@ -126,12 +126,15 @@ def main():
 	for i, vec in enumerate(vectors):
 		similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
 		closest = similarities.argsort(descending=True)
-		index = closest[0]
-		print(all_data.Tweet[i])
-		print(f"label: {semEmotions[index]}, similarity: {similarities[index]}, actual label: {','.join(['Todo'])}") #todo actual label
-
-		if i == 20:
-			return
+		if index < 5:
+			print(all_data.Tweet[i])
+			for index in closest:
+				print(f"label: {semEmotions[index]}, similarity: {similarities[index]}") 
+		elif < 20:
+			index = closest[0]
+			print(all_data.Tweet[i])
+			print(f"actual label: {','.join(['Todo'])}")
+			print(f"label: {semEmotions[index]}, similarity: {similarities[index]}")
 
 
 if __name__ == '__main__':
