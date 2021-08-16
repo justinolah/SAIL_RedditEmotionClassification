@@ -86,7 +86,7 @@ def main():
 
 	bert = BertModel.from_pretrained('bert-base-uncased')
 
-	model = BERT_Model(bert, len(emotions))
+	model = BERT_Model(bert, 27)
 	model = model.to(device)
 
 	checkpoint = torch.load("bert_best.pt")
@@ -100,8 +100,8 @@ def main():
 		truncation=True
 	)
 
-	emotion_ids = emotion_input['input_ids']
-	emotion_mask = emotion_input['attention_mask']
+	emotion_ids = torch.tensor(emotion_input['input_ids'])
+	emotion_mask = torch.tensor(emotion_input['attention_mask'])
 
 	emotion_output = model(emotion_ids.to(device), emotion_mask.to(device))
 
