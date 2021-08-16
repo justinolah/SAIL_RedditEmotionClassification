@@ -129,7 +129,7 @@ def main():
 		closest = similarities.argsort(descending=True)
 		index = closest[0]
 		print(all_data.Tweet[i])
-		print(f"label: {semEmotions[index]}, similarity: {similarities[index]}, actual label: {",".join([])}") #todo actual label
+		print(f"label: {semEmotions[index]}, similarity: {similarities[index]}, actual label: {','.join(['Todo'])}") #todo actual label
 
 		if i == 20:
 			return
