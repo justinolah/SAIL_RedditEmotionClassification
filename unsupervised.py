@@ -80,8 +80,10 @@ def main():
 	test = pd.read_csv(DIR + TEST_DIR, sep='\t')
 	dev = pd.read_csv(DIR + DEV_DIR, sep='\t')
 
+	all_data = pd.concat([train, test, dev]),
 
-	data_set = makeBERTDatasetSemEval(pd.concat([train, test, dev]), tokenizer, max_length, semEmotions)
+
+	data_set = makeBERTDatasetSemEval(all_data, tokenizer, max_length, semEmotions)
 	dataloader = DataLoader(data_set, batch_size=batch_size)
 
 	bert = BertModel.from_pretrained('bert-base-uncased')
@@ -126,7 +128,11 @@ def main():
 		similarities = F.cosine_similarity(output, emotion_vecs)
 		closest = similarities.argsort(descending=True)
 		index = closest[0]
+		print(all_data.Tweet[i])
 		print(f"label: {semEmotions[index]}, similarity: {similarities[index]}, actual label: {",".join([])}") #todo actual label
+
+		if i == 20:
+			return
 
 
 if __name__ == '__main__':
