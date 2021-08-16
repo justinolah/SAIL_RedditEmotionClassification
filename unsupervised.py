@@ -123,18 +123,29 @@ def main():
 	vectors = torch.Tensor(len(dataloader), 768)
 	torch.cat(outputs, out=vectors)
 
+	predictions = []
+
 	for i, vec in enumerate(vectors):
 		similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
 		closest = similarities.argsort(descending=True)
 		if i < 5:
-			print(all_data.Tweet[i])
+			print(all_data.Tweet[i].tolist())
 			for index in closest:
 				print(f"label: {semEmotions[index]}, similarity: {similarities[index]}") 
 		elif i < 20:
 			index = closest[0]
-			print(all_data.Tweet[i])
+			print(all_data.Tweet[i].tolist())
 			print(f"actual label: {','.join(['Todo'])}")
 			print(f"label: {semEmotions[index]}, similarity: {similarities[index]}")
+
+		pred = np.zeros(len(semEmotions))
+		pred[closest[0]] = 1
+		predictions.append(pred)
+
+	print(classification_report(targets, predictions, target_names=semEmotions, zero_division=0, output_dict=False))
+
+
+
 
 
 if __name__ == '__main__':
