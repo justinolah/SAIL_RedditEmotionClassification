@@ -124,6 +124,8 @@ def main():
 	print(vectors.size())
 
 	for i, ouput in enumerate(outputs):
+		print(output.size())
+		print(emotion_vecs.size())
 		similarities = F.cosine_similarity(output, emotion_vecs)
 		closest = similarities.argsort(descending=True)
 		index = closest[0]
