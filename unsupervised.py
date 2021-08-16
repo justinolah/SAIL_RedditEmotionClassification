@@ -105,6 +105,7 @@ def main():
 	emotion_mask = torch.tensor(emotion_input['attention_mask'])
 
 	emotion_vecs = model(emotion_ids.to(device), emotion_mask.to(device))
+	emotion_vecs = emotion_vecs.cpu()
 
 	outputs = []	
 	targets = []
@@ -126,7 +127,7 @@ def main():
 	for i, vec in enumerate(vectors):
 		print(vec.size())
 		print(emotion_vecs.size())
-		similarities = F.cosine_similarity(vec, emotion_vecs)
+		similarities = F.cosine_similarity(vec.to(device), emotion_vecs.to(device))
 		closest = similarities.argsort(descending=True)
 		index = closest[0]
 		print(all_data.Tweet[i])
