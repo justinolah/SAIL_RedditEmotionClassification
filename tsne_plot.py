@@ -22,6 +22,13 @@ torch.cuda.manual_seed_all(seed_value)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
+hue_order = [
+	"amusement", "excitement", "joy","love","desire","optimism","caring","pride",
+	"admiration","gratitude", "relief","approval","realization","surprise","curiosity",
+	"confusion","fear","nervousness","remorse","embarrassment","disappointment","sadness",
+	"grief","disgust","anger","annoyance","disapproval"
+]
+
 class BERT_Model(nn.Module):
 	def __init__(self, bert, numEmotions):
 		super(BERT_Model, self).__init__()
@@ -73,7 +80,7 @@ def main():
 	dev = getValSet()
 	all_data = test #pd.concat([train, test, dev])
 
-	Y = all_data.labels.apply(lambda x: emotions_plus_neutral[int(x.split(',')[0])])
+	Y = all_data.labels.apply(lambda x: emotions_plus_neutral[int(x.split(',')[0])]) #todo get predicted label instead
 
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
@@ -106,7 +113,7 @@ def main():
 
 	df = pd.DataFrame(reduced)
 	df = pd.concat([df,Y], axis=1)
-	sns.FacetGrid(df, hue="labels" , size=6).map(plt.scatter, 0, 1).add_legend()
+	sns.FacetGrid(df, hue="labels", hue_order=hue_order, height=6).map(plt.scatter, 0, 1).add_legend()
 	plt.savefig("tsne.png", format="png")
 	plt.show()
 
