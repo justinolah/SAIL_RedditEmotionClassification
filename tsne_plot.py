@@ -64,6 +64,7 @@ def main():
 	batch_size = 16
 
 	emotions = getEmotions()
+	emotions_plus_neutral = emotions.copy()
 	emotions.remove("neutral")
 
 	train = getTrainSet()
@@ -71,7 +72,7 @@ def main():
 	dev = getValSet()
 	all_data = test #pd.concat([train, test, dev])
 
-	Y = all_data.labels.apply(lambda x: emotions[int(x.split(',')[0])] if len(x.split(',')) > 0 else 'neutral')
+	Y = all_data.labels.apply(lambda x: emotions_plus_neutral[int(x.split(',')[0])])
 
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
@@ -80,7 +81,7 @@ def main():
 
 	bert = BertModel.from_pretrained('bert-base-uncased')
 
-	model = BERT_Model(bert, len(emotions))
+	model = BERT_Model(bert, len(emotions)-1)
 	model = model.to(device)
 
 	checkpoint = torch.load("bert_best.pt")
