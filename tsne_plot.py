@@ -110,10 +110,13 @@ def main():
 
 		output = sigmoid(output)
 		output = output.cpu()
-		output = (output > threshold).int().detach()
-		for item in output:
-			preds = [emotions[index] for index, val in enumerate(item.tolist()) if val == 1]
-			predictions.append(random.choice(preds) if len(preds) > 0 else 'neutral')
+		vals, indices = torch.max(output,1)
+
+		for (val, index) in zip(vals.tolist(), indices.tolist()):
+			if val > threshold:
+				predictions.append(emotions[index])
+			else:
+				predictions.append('neutral')
 
 	vectors = torch.Tensor(len(dataloader), 768)
 	torch.cat(embed_vecs, out=vectors)
