@@ -106,7 +106,7 @@ def main():
 
 	df = pd.DataFrame(reduced)
 	df = pd.concat([df,Y], axis=1)
-	sns.FacetGrid(df, hue="label" , size=6).map(plt.scatter, 0, 1).add_legend()
+	sns.FacetGrid(df, hue="labels" , size=6).map(plt.scatter, 0, 1).add_legend()
 	plt.savefig("tsne.png", format="png")
 	plt.show()
 
