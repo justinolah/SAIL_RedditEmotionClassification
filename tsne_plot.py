@@ -71,7 +71,7 @@ def main():
 	dev = getValSet()
 	all_data = test #pd.concat([train, test, dev])
 
-	Y = all_data.labels.apply(lambda x: emotions[x.split(',')[0]] if len(x.split(',')) > 0 else 'neutral')
+	Y = all_data.labels.apply(lambda x: emotions[int(x.split(',')[0])] if len(x.split(',')) > 0 else 'neutral')
 
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
