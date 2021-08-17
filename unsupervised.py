@@ -68,9 +68,15 @@ def main():
 
 	max_length = 128
 	batch_size = 16
+	grouping = None
 
-	semEmotions = getSemEvalEmotions()
-	emotions = getEmotions()
+	if grouping == "sentiment":
+		emotions = getSemEvalEmotions()
+		bertfile = "bert_sentiment.pt"
+	else:
+		emotions = getEmotions()
+		emotions.remove("neutral")
+		bertfile = "bert_best.pt"
 
 	#todo expand emotion labels with wordnet synonyms, defintion, etc.
 
@@ -91,10 +97,10 @@ def main():
 
 	bert = BertModel.from_pretrained('bert-base-uncased')
 
-	model = BERT_Model(bert, 27)
+	model = BERT_Model(bert, len(emotions))
 	model = model.to(device)
 
-	checkpoint = torch.load("bert_best.pt")
+	checkpoint = torch.load(bertfile)
 	model.load_state_dict(checkpoint['model_state_dict'])
 	model.eval()
 
@@ -125,6 +131,7 @@ def main():
 	vectors = torch.Tensor(len(dataloader), 768)
 	torch.cat(outputs, out=vectors)
 
+	targets = np.concatenate(targets)
 	predictions = []
 
 	tweets = all_data.Tweet.tolist()
@@ -135,18 +142,18 @@ def main():
 		if i < 5:
 			print(tweets[i])
 			for index in closest:
-				print(f"label: {semEmotions[index]}, similarity: {similarities[index]}") 
+				print(f"actual label: {','.join(semEmotions[[index for index, num in enumerate(targets[i]) if num == 1]])}") 
+				print(f"label: {semEmotions[index]}, similarity: {similarities[index]}\n") 
 		elif i < 20:
 			index = closest[0]
 			print(tweets[i])
-			print(f"actual label: {','.join(['Todo'])}")
-			print(f"label: {semEmotions[index]}, similarity: {similarities[index]}")
+			print(f"actual label: {','.join(semEmotions[[index for index, num in enumerate(targets[i]) if num == 1]])}") 
+			print(f"label: {semEmotions[index]}, similarity: {similarities[index]}\n")
 
 		pred = np.zeros(len(semEmotions))
 		pred[closest[0]] = 1
 		predictions.append(pred)
 
-	targets = np.concatenate(targets)
 	print(classification_report(targets, predictions, target_names=semEmotions, zero_division=0, output_dict=False))
 
 
