@@ -70,6 +70,7 @@ def main():
 
 	max_length = 128
 	batch_size = 16
+	threshold = 0.5
 
 	emotions = getEmotions()
 	emotions_plus_neutral = emotions.copy()
