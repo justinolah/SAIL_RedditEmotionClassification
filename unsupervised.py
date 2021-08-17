@@ -71,12 +71,14 @@ def main():
 	grouping = None
 
 	if grouping == "sentiment":
-		emotions = getSemEvalEmotions()
+		emotions = getSentimentDict().keys()
 		bertfile = "bert_sentiment.pt"
 	else:
 		emotions = getEmotions()
 		emotions.remove("neutral")
 		bertfile = "bert_best.pt"
+
+	semEmotions = getSemEvalEmotions()
 
 	#todo expand emotion labels with wordnet synonyms, defintion, etc.
 
