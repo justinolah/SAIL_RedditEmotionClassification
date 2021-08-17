@@ -82,7 +82,7 @@ def main():
 
 	bert = BertModel.from_pretrained('bert-base-uncased')
 
-	model = BERT_Model(bert, len(emotions)-1)
+	model = BERT_Model(bert, len(emotions))
 	model = model.to(device)
 
 	checkpoint = torch.load("bert_best.pt")
