@@ -112,7 +112,7 @@ def main():
 		output = output.cpu()
 		output = (output > threshold).int().detach()
 		for item in output:
-			preds = [emotion[index] for index, val in enumerate(item.tolist()) if val == 1]
+			preds = [emotions[index] for index, val in enumerate(item.tolist()) if val == 1]
 			predictions.append(random.choice(preds) if len(preds) > 0 else 'neutral')
 
 	vectors = torch.Tensor(len(dataloader), 768)
