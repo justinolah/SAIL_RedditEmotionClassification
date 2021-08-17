@@ -123,7 +123,7 @@ def main():
 	reduced = tsne.fit_transform(vectors)
 
 	df = pd.DataFrame(reduced)
-	df.label = predictions
+	df["label"] = predictions
 	sns.FacetGrid(df, hue="label", hue_order=hue_order, height=6).map(plt.scatter, 0, 1).add_legend()
 	plt.savefig("plots/tsne.png", format="png")
 	plt.show()
