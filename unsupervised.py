@@ -144,12 +144,12 @@ def main():
 		if i < 5:
 			print(tweets[i])
 			for index in closest:
-				print(f"actual label: {','.join(semEmotions[[index for index, num in enumerate(targets[i]) if num == 1]])}") 
+				print(f"actual label: {','.join([semEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
 				print(f"label: {semEmotions[index]}, similarity: {similarities[index]}\n") 
 		elif i < 20:
 			index = closest[0]
 			print(tweets[i])
-			print(f"actual label: {','.join(semEmotions[[index for index, num in enumerate(targets[i]) if num == 1]])}") 
+			print(f"actual label: {','.join([semEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}")
 			print(f"label: {semEmotions[index]}, similarity: {similarities[index]}\n")
 
 		pred = np.zeros(len(semEmotions))

@@ -37,8 +37,8 @@ class BERT_Model(nn.Module):
 
 	def forward(self, sent_id, mask):
 		_, cls_hs = self.bert(sent_id, attention_mask=mask, return_dict=False)
-		#out = self.fc(cls_hs)
-		return cls_hs
+		out = self.fc(cls_hs)
+		return cls_hs, out
 
 def makeBERTDataset(data, tokenizer, max_length, emotions, new_emotions=None, idx_map=None):
 	if idx_map is None:
@@ -80,7 +80,7 @@ def main():
 	dev = getValSet()
 	all_data = test #pd.concat([train, test, dev])
 
-	Y = all_data.labels.apply(lambda x: emotions_plus_neutral[int(x.split(',')[0])]) #todo get predicted label instead
+	#Y = all_data.labels.apply(lambda x: emotions_plus_neutral[int(x.split(',')[0])]) #todo get predicted label instead
 
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
@@ -92,29 +92,38 @@ def main():
 	model = BERT_Model(bert, len(emotions))
 	model = model.to(device)
 
+	sigmoid = nn.Sigmoid()
+
 	checkpoint = torch.load("bert_best.pt")
 	model.load_state_dict(checkpoint['model_state_dict'])
 	model.eval()
 
-	outputs = []	
+	embed_vecs = []
+	predictions = []	
 
 	for batch in tqdm(dataloader):
 		seq, mask, _ = batch
 
-		output = model(seq.to(device), mask.to(device))
-		outputs.append(output.detach().cpu())
+		embed, output = model(seq.to(device), mask.to(device))
+		embed_vecs.append(embed.detach().cpu())
+
+		output = sigmoid(output)
+		output = output.cpu()
+		output = (output > threshold).int().detach().tolist()
+		preds = [emotion[index] for index, val in enumerate(output) if val == 1]
+		prediction.append(random.choice(preds) if len(pred) > 0 else 'neutral')
 
 	vectors = torch.Tensor(len(dataloader), 768)
-	torch.cat(outputs, out=vectors)
+	torch.cat(embed_vecs, out=vectors)
 
 	tsne = TSNE(n_components = 2, perplexity = 30, random_state = 6, learning_rate = 500, n_iter = 1500, verbose=2, n_jobs=10)
 
 	reduced = tsne.fit_transform(vectors)
 
 	df = pd.DataFrame(reduced)
-	df = pd.concat([df,Y], axis=1)
-	sns.FacetGrid(df, hue="labels", hue_order=hue_order, height=6).map(plt.scatter, 0, 1).add_legend()
-	plt.savefig("tsne.png", format="png")
+	df.label = predictions
+	sns.FacetGrid(df, hue="label", hue_order=hue_order, height=6).map(plt.scatter, 0, 1).add_legend()
+	plt.savefig("plots/tsne.png", format="png")
 	plt.show()
 
 
