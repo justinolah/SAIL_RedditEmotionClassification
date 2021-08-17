@@ -2,6 +2,7 @@ import pandas as pd
 from helpers import *
 from learn import *
 from transformers import BertModel, BertTokenizerFast
+from collections import Counter
 
 from torch.utils.data import TensorDataset, DataLoader
 
@@ -121,7 +122,7 @@ def main():
 	vectors = torch.Tensor(len(dataloader), 768)
 	torch.cat(embed_vecs, out=vectors)
 
-	tsne = TSNE(n_components = 2, perplexity = 30, random_state = 6, learning_rate = 500, n_iter = 1500, verbose=2, n_jobs=10)
+	tsne = TSNE(n_components = 2, perplexity = 50, random_state = 6, learning_rate = 500, n_iter = 1500, verbose=2, n_jobs=10)
 
 	reduced = tsne.fit_transform(vectors)
 
@@ -129,7 +130,10 @@ def main():
 	df["label"] = predictions
 	sns.FacetGrid(df, hue="label", hue_order=hue_order, height=6).map(plt.scatter, 0, 1).add_legend()
 	plt.savefig("plots/tsne.png", format="png")
-	plt.show()
+
+	preds = Counter(predictions)
+	for emotion in emotions_plus_neutral:
+		print(f"{emotion}: {preds[emotion]}")
 
 
 
