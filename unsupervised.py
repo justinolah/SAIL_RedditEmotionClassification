@@ -7,6 +7,8 @@ from sklearn.metrics import classification_report
 
 from tqdm import tqdm
 
+import wandb
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
