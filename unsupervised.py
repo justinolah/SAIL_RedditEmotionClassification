@@ -11,6 +11,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+wandb.init(project='SAILGoemotions', entity='justinolah')
+config = wandb.config
+
 seed_value=42
 np.random.seed(seed_value)
 torch.manual_seed(seed_value)
@@ -68,7 +71,11 @@ def main():
 
 	max_length = 128
 	batch_size = 16
-	grouping = None
+	framework = "Semeval Unsupervised via Goemotions bert model embeddings"
+	grouping = "sentiment"
+
+	config.framework = framework
+	config.grouping = grouping
 
 	if grouping == "sentiment":
 		emotions = getSentimentDict().keys()
@@ -157,6 +164,10 @@ def main():
 		predictions.append(pred)
 
 	print(classification_report(targets, predictions, target_names=semEmotions, zero_division=0, output_dict=False))
+	report = classification_report(targets, predictions, target_names=semEmotions, zero_division=0, output_dict=True)
+
+	table = wandb.Table(dataframe=pd.DataFrame.from_dict(report))
+	wandb.log({"SemEvalDataset": table})
 
 
 
