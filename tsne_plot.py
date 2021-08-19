@@ -128,16 +128,16 @@ def main():
 
 	reduced = tsne.fit_transform(vectors)
 
-	pallete = sns.color_palette("husl", len(labels))
+	palette = sns.color_palette("husl", len(labels))
 
 	if len(labels) > 15:
-		pallete = pallete[2:] + pallete[:2]
+		palette = palette[2:] + palette[:2]
 	else:
-		pallete = pallete[1:] + [pallete[0]]
+		palette = palette[1:] + [palette[0]]
 
 	df = pd.DataFrame(reduced)
 	df["label"] = predictions
-	sns.FacetGrid(df, hue="label", hue_order=labels, height=6).map(plt.scatter, 0, 1).add_legend()
+	sns.FacetGrid(df, hue="label", hue_order=labels, palette=palette, height=6).map(plt.scatter, 0, 1).add_legend()
 	plt.savefig("plots/tsne.png", format="png")
 
 	preds = Counter(predictions)
