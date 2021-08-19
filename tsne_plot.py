@@ -128,7 +128,7 @@ def main():
 
 	df = pd.DataFrame(reduced)
 	df["label"] = predictions
-	pallete = sns.color_palette("husl", 27)
+	palette = sns.color_palette("husl", 27)
 	sns.FacetGrid(df, hue="label", hue_order=hue_order, palette=palette, height=6).map(plt.scatter, 0, 1).add_legend()
 	plt.savefig("plots/tsne.png", format="png")
 
