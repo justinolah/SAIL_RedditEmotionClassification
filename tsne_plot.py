@@ -30,7 +30,7 @@ hue_order = [
 	"grief","disgust","anger","annoyance","disapproval"
 ]
 
-couple_labels = ["amusement", "love", "desire", "curiosity", "surprise", "sadness", "digust", "anger"]
+couple_labels = ["amusement", "love", "pride", "desire", "curiosity", "confusion", "surprise", "sadness", "fear", "disgust", "anger"]
 
 class BERT_Model(nn.Module):
 	def __init__(self, bert, numEmotions):
