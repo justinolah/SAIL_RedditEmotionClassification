@@ -128,7 +128,7 @@ def main():
 
 	df = pd.DataFrame(reduced)
 	df["label"] = predictions
-	sns.FacetGrid(df, hue="label", hue_order=hue_order, height=6).map(plt.scatter, 0, 1).add_legend()
+	sns.FacetGrid(df, hue="label", hue_order=couple_labels, height=6).map(plt.scatter, 0, 1).add_legend()
 	plt.savefig("plots/tsne.png", format="png")
 
 	preds = Counter(predictions)
