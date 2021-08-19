@@ -30,6 +30,8 @@ hue_order = [
 	"grief","disgust","anger","annoyance","disapproval"
 ]
 
+couple_labels = ["amusment", "love", "curiosity", "sadness", "anger"]
+
 class BERT_Model(nn.Module):
 	def __init__(self, bert, numEmotions):
 		super(BERT_Model, self).__init__()
@@ -82,8 +84,6 @@ def main():
 	dev = getValSet()
 	all_data = test #pd.concat([train, test, dev])
 
-	#Y = all_data.labels.apply(lambda x: emotions_plus_neutral[int(x.split(',')[0])]) #todo get predicted label instead
-
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
 	data_set = makeBERTDataset(all_data, tokenizer, max_length, emotions)
@@ -122,13 +122,14 @@ def main():
 	vectors = torch.Tensor(len(dataloader), 768)
 	torch.cat(embed_vecs, out=vectors)
 
-	tsne = TSNE(n_components = 2, perplexity = 50, random_state = 6, learning_rate = 500, n_iter = 1500, verbose=2, n_jobs=10)
+	tsne = TSNE(n_components = 2, perplexity = 50, random_state = 6, learning_rate = 500, n_iter = 1000, verbose=2, n_jobs=10)
 
 	reduced = tsne.fit_transform(vectors)
 
 	df = pd.DataFrame(reduced)
 	df["label"] = predictions
-	sns.FacetGrid(df, hue="label", hue_order=hue_order, height=6).map(plt.scatter, 0, 1).add_legend()
+	pallete = sns.color_palette("husl", 27)
+	sns.FacetGrid(df, hue="label", hue_order=hue_order, palette=palette, height=6).map(plt.scatter, 0, 1).add_legend()
 	plt.savefig("plots/tsne.png", format="png")
 
 	preds = Counter(predictions)
