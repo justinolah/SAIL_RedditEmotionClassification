@@ -23,7 +23,7 @@ torch.cuda.manual_seed_all(seed_value)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-hue_order = [
+all_labels = [
 	"amusement", "excitement", "joy","love","desire","optimism","caring","pride",
 	"admiration","gratitude", "relief","approval","realization","surprise","curiosity",
 	"confusion","fear","nervousness","remorse","embarrassment","disappointment","sadness",
@@ -74,8 +74,6 @@ def main():
 	max_length = 128
 	batch_size = 16
 	threshold = 0.5
-
-	labels = couple_labels
 
 	emotions = getEmotions()
 	emotions_plus_neutral = emotions.copy()
@@ -128,16 +126,18 @@ def main():
 
 	reduced = tsne.fit_transform(vectors)
 
-	palette = sns.color_palette("husl", len(labels))
-
-	if len(labels) > 15:
-		palette = palette[2:] + palette[:2]
-	else:
-		palette = palette[1:] + [palette[0]]
-
 	df = pd.DataFrame(reduced)
 	df["label"] = predictions
-	sns.FacetGrid(df, hue="label", hue_order=labels, palette=palette, height=6).map(plt.scatter, 0, 1).add_legend()
+
+	palette = sns.color_palette("husl", len(couple_labels))
+	palette = palette[1:] + [palette[0]]
+	sns.FacetGrid(df, hue="label", hue_order=couple_labels, palette=palette, height=6).map(plt.scatter, 0, 1).add_legend()
+	plt.savefig("plots/tsne_few.png", format="png")
+
+
+	palette = sns.color_palette("husl", len(all_labels))
+	palette = palette[2:] + palette[:2]
+	sns.FacetGrid(df, hue="label", hue_order=all_labels, palette=palette, height=6).map(plt.scatter, 0, 1).add_legend()
 	plt.savefig("plots/tsne.png", format="png")
 
 	preds = Counter(predictions)
