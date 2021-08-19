@@ -30,7 +30,7 @@ hue_order = [
 	"grief","disgust","anger","annoyance","disapproval"
 ]
 
-couple_labels = ["amusment", "love", "curiosity", "sadness", "anger"]
+couple_labels = ["amusement", "love", "desire", "curiosity", "surprise", "sadness", "digust", "anger"]
 
 class BERT_Model(nn.Module):
 	def __init__(self, bert, numEmotions):
@@ -128,8 +128,7 @@ def main():
 
 	df = pd.DataFrame(reduced)
 	df["label"] = predictions
-	palette = sns.color_palette("husl", 27)
-	sns.FacetGrid(df, hue="label", hue_order=hue_order, palette=palette, height=6).map(plt.scatter, 0, 1).add_legend()
+	sns.FacetGrid(df, hue="label", hue_order=hue_order, height=6).map(plt.scatter, 0, 1).add_legend()
 	plt.savefig("plots/tsne.png", format="png")
 
 	preds = Counter(predictions)
