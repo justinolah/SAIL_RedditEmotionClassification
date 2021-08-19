@@ -75,6 +75,8 @@ def main():
 	batch_size = 16
 	threshold = 0.5
 
+	labels = couple_labels
+
 	emotions = getEmotions()
 	emotions_plus_neutral = emotions.copy()
 	emotions.remove("neutral")
@@ -126,9 +128,16 @@ def main():
 
 	reduced = tsne.fit_transform(vectors)
 
+	pallete = sns.color_palette("husl", len(labels))
+
+	if len(labels) > 15:
+		pallete = pallete[2:] + pallete[:2]
+	else:
+		pallete = pallete[1:] + [pallete[0]]
+
 	df = pd.DataFrame(reduced)
 	df["label"] = predictions
-	sns.FacetGrid(df, hue="label", hue_order=couple_labels, height=6).map(plt.scatter, 0, 1).add_legend()
+	sns.FacetGrid(df, hue="label", hue_order=labels, height=6).map(plt.scatter, 0, 1).add_legend()
 	plt.savefig("plots/tsne.png", format="png")
 
 	preds = Counter(predictions)
