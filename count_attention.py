@@ -142,8 +142,8 @@ def main():
 
 		for label in predicted_labels:
 			counts[label].update(tokens)
-			for j in range(len(tokens)):
-				word_scores[label][tokens[j]] += att[j]
+			for (token, att) in zip(new_tokens, new_att):
+				word_scores[label][token] += att
 
 	avg_scores = word_scores.copy()
 
