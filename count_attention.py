@@ -132,6 +132,8 @@ def main():
 		new_att = []
 		new_tokens = []
 
+		print(tokens)
+
 		for j, token in reversed(list(enumerate(tokens))):
 			if "##" in token:
 				tokens[j-1] += token[2:]
@@ -140,7 +142,6 @@ def main():
 				new_att.insert(0,att[j])
 				new_tokens.insert(0,tokens[j])
 
-		print(tokens)
 		print(new_tokens)
 
 		for label in predicted_labels:
