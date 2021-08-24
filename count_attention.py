@@ -22,6 +22,8 @@ torch.backends.cudnn.benchmark = False
 
 latex_special_token = ["!@#$%^&*()"]
 
+common_words = ["the", "to", "that", "for", "in", "of", "and", "it", "be", "them", "they", "we", "you", "about", "has", "have", "had", "this", "about", "on"]
+
 class BERT_Model(nn.Module):
 	def __init__(self, bert, numEmotions):
 		super(BERT_Model, self).__init__()
@@ -41,7 +43,7 @@ def KmaxelementsDict(dict, k):
 		maxval = 0
 		
 		for (word, val) in dict.items():    
-			if val > maxval and word not in kdict and word not in '''[]'`’-*/\\:;~%,."()''':
+			if val > maxval and word not in kdict and word not in '''[]'`’-*/\\:;~%,."()''' and word not in common_words:
 				maxword, maxval = word, val
 
 		kdict[maxword] = maxval
@@ -72,9 +74,9 @@ def main():
 	model = BERT_Model(bert, len(emotions))
 	model = model.to(device)
 
-	checkpoint = torch.load("bert_best.pt")
-	model.load_state_dict(checkpoint['model_state_dict'])
-	model.eval()
+	#checkpoint = torch.load("bert_best.pt")
+	#model.load_state_dict(checkpoint['model_state_dict'])
+	#model.eval()
 
 	tokens = tokenizer.batch_encode_plus(
 		data.text.tolist(),
@@ -126,6 +128,17 @@ def main():
 
 		att /= 12
 		att = att.tolist()
+
+		new_att = []
+		new_tokens = []
+
+		for j, token in reversed(list(enumerate(tokens))):
+			if "##" in token:
+				tokens[j-1] += token[2:]
+				att[j-1] += att[j]
+			else:
+				new_att.insert(0,att[j])
+				new_tokens.insert(0,tokens[j])
 
 		for label in predicted_labels:
 			counts[label].update(tokens)
