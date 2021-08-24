@@ -134,9 +134,9 @@ def main():
 
 		print(tokens)
 
-		for j, token in reversed(list(enumerate(tokens))):
-			if "##" in token:
-				tokens[j-1] += token[2:]
+		for j in reversed(range(len(tokens))):
+			if "##" in tokens[j]:
+				tokens[j-1] += tokens[j][2:]
 				att[j-1] += att[j]
 			else:
 				new_att.insert(0,att[j])
