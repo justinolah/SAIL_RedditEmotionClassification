@@ -22,7 +22,7 @@ torch.backends.cudnn.benchmark = False
 
 latex_special_token = ["!@#$%^&*()"]
 
-common_words = ["the", "to", "that", "for", "in", "of", "and", "it", "be", "them", "they", "we", "you", "about", "has", "have", "had", "this", "about", "on"]
+common_words = ["the", "to", "that", "for", "in", "of", "and", "it", "be", "them", "they", "we", "you", "about", "has", "have", "had", "this", "about", "on", "[UNK]"]
 
 class BERT_Model(nn.Module):
 	def __init__(self, bert, numEmotions):
@@ -94,7 +94,7 @@ def main():
 		mask = torch.tensor(masks[i])
 
 		tokens = tokenizer.convert_ids_to_tokens(seq)
-		tokens = [token for token in tokens if token not in ['[PAD]','[CLS]','[SEP]', '[UNK]']]
+		tokens = [token for token in tokens if token not in ['[PAD]','[CLS]','[SEP]']]
 
 		if len(tokens) == 0:
 			continue
