@@ -140,8 +140,11 @@ def main():
 				new_att.insert(0,att[j])
 				new_tokens.insert(0,tokens[j])
 
+		print(tokens)
+		print(new_tokens)
+
 		for label in predicted_labels:
-			counts[label].update(tokens)
+			counts[label].update(new_tokens)
 			for (token, att) in zip(new_tokens, new_att):
 				word_scores[label][token] += att
 
