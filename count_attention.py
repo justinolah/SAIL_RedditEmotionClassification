@@ -66,7 +66,7 @@ def main():
 
 	train = getTrainSet()
 	test = getTestSet()
-	dev = getDevSet()
+	dev = getValSet()
 	data = pd.concat([train, test, dev])
 
 	max_length = 128
