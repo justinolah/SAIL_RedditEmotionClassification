@@ -22,7 +22,7 @@ torch.backends.cudnn.benchmark = False
 
 latex_special_token = ["!@#$%^&*()"]
 
-common_words = ["the", "to", "that", "for", "in", "of", "and", "it", "be", "them", "they", "we", "you", "about", "has", "have", "had", "this", "about", "on", "[UNK]"]
+common_words = ["the", "to", "that", "for", "in", "of", "and", "it", "be", "is", "them", "they", "we", "you", "about", "has", "have", "had", "this", "about", "on", "[UNK]", "at", "there", "my", "re", "made"]
 
 class BERT_Model(nn.Module):
 	def __init__(self, bert, numEmotions):
@@ -43,7 +43,7 @@ def KmaxelementsDict(dict, k):
 		maxval = 0
 		
 		for (word, val) in dict.items():    
-			if val > maxval and word not in kdict and word not in '''[]'`’-*/\\:;~%,."()''' and word not in common_words:
+			if val > maxval and word not in kdict and len(word) > 1 and word not in '''[]'`’-*/\\:;~%,."()''' and word not in common_words:
 				maxword, maxval = word, val
 
 		kdict[maxword] = maxval
@@ -64,8 +64,10 @@ def main():
 	counts = dict(zip(emotions,[Counter() for i in range(len(emotions))]))
 	word_scores = dict(zip(emotions,[defaultdict(float) for i in range(len(emotions))]))
 
-
-	data = getTestSet()
+	train = getTrainSet()
+	test = getTestSet()
+	dev = getDevSet()
+	data = pd.concat([train, test, dev])
 
 	max_length = 128
 
