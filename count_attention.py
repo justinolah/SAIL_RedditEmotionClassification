@@ -94,7 +94,7 @@ def main():
 		mask = torch.tensor(masks[i])
 
 		tokens = tokenizer.convert_ids_to_tokens(seq)
-		tokens = [token for token in tokens if token not in ['[PAD]','[CLS]','[SEP]']]
+		tokens = [token for token in tokens if token not in ['[PAD]','[CLS]','[SEP]', '[UNK]']]
 
 		length = len(tokens)
 
