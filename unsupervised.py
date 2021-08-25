@@ -48,6 +48,23 @@ def makeBERTDatasetSemEval(data, tokenizer, max_length, emotions):
 	dataset = TensorDataset(seq, mask, y)
 	return dataset
 
+def makeBERTDatasetGoEmotions(data, tokenizer, max_length, emotions):
+	data.labels = data.labels.apply(lambda x: getYMatrix(x,len(emotions)))
+
+	tokens = tokenizer.batch_encode_plus(
+		data.text.tolist(),
+		max_length = max_length,
+		padding='max_length',
+		truncation=True
+	)
+
+	seq = torch.tensor(tokens['input_ids'])
+	mask = torch.tensor(tokens['attention_mask'])
+	y = torch.tensor(data.labels.tolist())
+
+	dataset = TensorDataset(seq, mask, y)
+	return dataset
+
 class BERT_Model(nn.Module):
 	def __init__(self, bert, numEmotions):
 		super(BERT_Model, self).__init__()
@@ -110,6 +127,7 @@ def main():
 	print(f"Number of tweets: {len(all_data)}")
 
 	data_set = makeBERTDatasetSemEval(all_data, tokenizer, max_length, newEmotions)
+	#data_set = makeBERTDatasetGoEmotions(all_data, tokenizer, max_length, newEmotions)
 	dataloader = DataLoader(data_set, batch_size=batch_size)
 
 	bert = BertModel.from_pretrained('bert-base-uncased')
@@ -151,19 +169,20 @@ def main():
 	targets = np.concatenate(targets)
 	predictions = []
 
-	tweets = all_data.Tweet.tolist()
+	texts = all_data.Tweet.tolist()
+	#texts = all_data.text.tolist()
 
 	for i, vec in enumerate(vectors):
 		similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
 		closest = similarities.argsort(descending=True)
 		if i < 5:
-			print(tweets[i])
+			print(texts[i])
 			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
 			for index in closest:
 				print(f"label: {newEmotions[index]}, similarity: {similarities[index]}\n") 
 		elif i < 20:
 			index = closest[0]
-			print(tweets[i])
+			print(texts[i])
 			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}")
 			print(f"label: {newEmotions[index]}, similarity: {similarities[index]}\n")
 
