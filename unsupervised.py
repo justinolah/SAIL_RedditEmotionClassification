@@ -88,6 +88,8 @@ def main():
 		bertfile = "bert_best.pt"
 
 	newEmotions = getSemEvalEmotions()
+	#newEmotions = getEmotions()
+	#newEmotions.remove("neutral")
 
 	#todo expand emotion labels with wordnet synonyms, defintion, etc.
 
@@ -96,6 +98,10 @@ def main():
 	train = pd.read_csv(DIR + TRAIN_DIR, sep='\t')
 	test = pd.read_csv(DIR + TEST_DIR, sep='\t')
 	dev = pd.read_csv(DIR + DEV_DIR, sep='\t')
+
+	#train = getTrainSet()
+	#test = getTestSet()
+	#dev = getValSet()
 
 	all_data = pd.concat([train, test, dev])
 	all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
