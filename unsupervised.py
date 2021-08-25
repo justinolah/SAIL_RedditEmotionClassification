@@ -87,7 +87,7 @@ def main():
 		emotions.remove("neutral")
 		bertfile = "bert_best.pt"
 
-	semEmotions = getSemEvalEmotions()
+	newEmotions = getSemEvalEmotions()
 
 	#todo expand emotion labels with wordnet synonyms, defintion, etc.
 
@@ -103,7 +103,7 @@ def main():
 
 	print(f"Number of tweets: {len(all_data)}")
 
-	data_set = makeBERTDatasetSemEval(all_data, tokenizer, max_length, semEmotions)
+	data_set = makeBERTDatasetSemEval(all_data, tokenizer, max_length, newEmotions)
 	dataloader = DataLoader(data_set, batch_size=batch_size)
 
 	bert = BertModel.from_pretrained('bert-base-uncased')
@@ -116,7 +116,7 @@ def main():
 	model.eval()
 
 	emotion_input = tokenizer.batch_encode_plus(
-		semEmotions,
+		newEmotions,
 		max_length = max_length,
 		padding='max_length',
 		truncation=True
@@ -152,21 +152,21 @@ def main():
 		closest = similarities.argsort(descending=True)
 		if i < 5:
 			print(tweets[i])
-			print(f"actual label: {','.join([semEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
+			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
 			for index in closest:
-				print(f"label: {semEmotions[index]}, similarity: {similarities[index]}\n") 
+				print(f"label: {newEmotions[index]}, similarity: {similarities[index]}\n") 
 		elif i < 20:
 			index = closest[0]
 			print(tweets[i])
-			print(f"actual label: {','.join([semEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}")
-			print(f"label: {semEmotions[index]}, similarity: {similarities[index]}\n")
+			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}")
+			print(f"label: {newEmotions[index]}, similarity: {similarities[index]}\n")
 
-		pred = np.zeros(len(semEmotions))
+		pred = np.zeros(len(newEmotions))
 		pred[closest[0]] = 1
 		predictions.append(pred)
 
-	print(classification_report(targets, predictions, target_names=semEmotions, zero_division=0, output_dict=False))
-	report = classification_report(targets, predictions, target_names=semEmotions, zero_division=0, output_dict=True)
+	print(classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=False))
+	report = classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=True)
 
 	table = wandb.Table(dataframe=pd.DataFrame.from_dict(report))
 	wandb.log({"SemEvalDataset": table})
