@@ -1,9 +1,9 @@
-import pandas as pd
+from learn import *
 from helpers import *
 from transformers import BertModel, BertTokenizerFast
 
 from torch.utils.data import TensorDataset, DataLoader
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, f1_score
 
 from tqdm import tqdm
 
@@ -134,6 +134,7 @@ def main():
 
 	model = BERT_Model(bert, len(emotions))
 	model = model.to(device)
+	softmax = nn.Softmax(dim=0)
 
 	checkpoint = torch.load(bertfile)
 	model.load_state_dict(checkpoint['model_state_dict'])
@@ -174,17 +175,18 @@ def main():
 
 	for i, vec in enumerate(vectors):
 		similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
+		soft = softmax(similarities)
 		closest = similarities.argsort(descending=True)
 		if i < 5:
 			print(texts[i])
 			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
 			for index in closest:
-				print(f"label: {newEmotions[index]}, similarity: {similarities[index]}\n") 
+				print(f"label: {newEmotions[index]}, similarity: {similarities[index]}, softmax: {soft[index]}\n") 
 		elif i < 20:
 			index = closest[0]
 			print(texts[i])
 			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}")
-			print(f"label: {newEmotions[index]}, similarity: {similarities[index]}\n")
+			print(f"label: {newEmotions[index]}, similarity: {similarities[index]}, softmax: {soft[index]}\n")
 
 		pred = np.zeros(len(newEmotions))
 		pred[closest[0]] = 1
