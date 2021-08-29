@@ -196,7 +196,7 @@ def main():
 		sim = sigmoid(sim)
 		similarities.append(sim)
 
-	threshold_options = np.linspace(0,1, num=100)
+	threshold_options = np.linspace(1,0, num=100)
 	thresholds = []
 	print("Thresholds:")
 	for i, emotion in enumerate(newEmotions):
@@ -209,7 +209,7 @@ def main():
 
 		best_index = np.argmax(f1s)
 		best = threshold_options[best_index]
-		print(f"{emotion}: {best} (F1: {f1s[best_index]})")
+		print(f"{emotion}: {best} (F1: {f1s[best_index]}, support: {np.sum(dev_targets[:,i])}, predicted: {np.sum((predictions > best).astype(int))})")
 		thresholds.append(best)
 
 	thresholds = np.array(thresholds)
@@ -235,7 +235,8 @@ def main():
 			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
 			print(f"predicted label: {','.join([newEmotions[index] for index, num in enumerate(pred.tolist()) if num == 1])}")
 			for index in closest:
-				print(f"label: {newEmotions[index]}, similarity: {similarities[index]}\n") 
+				print(f"label: {newEmotions[index]}, similarity: {similarities[index]}") 
+			print("")
 		elif i < 20:
 			index = closest[0]
 			print(texts[i])
