@@ -228,7 +228,7 @@ def main():
 		similarities = sigmoid(similarities)
 		closest = similarities.argsort(descending=True)
 
-		pred = (similarities > thresholds).int().detach().cpu()
+		pred = (similarities > thresholds.detach().cpu().numpy()).astype(int)
 
 		if i < 5:
 			print(texts[i])
