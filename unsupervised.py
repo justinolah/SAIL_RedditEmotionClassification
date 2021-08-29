@@ -80,6 +80,26 @@ def getSemEvalEmotions():
 	with open(SEMEVAL_EMOTIONS_FILE) as f:
 		return f.read().splitlines()
 
+def getSentenceRep(dataloader, model, device):
+	outputs = []	
+	targets = []
+	num = 0
+
+	for batch in tqdm(dataloader):
+		seq, mask, labels = batch
+		num += len(seq)
+
+		targets.append(labels.detach())
+
+		output = model(seq.to(device), mask.to(device))
+		outputs.append(output.detach().cpu())
+
+	vectors = torch.Tensor(num, 768)
+	torch.cat(outputs, out=vectors)
+	targets = np.concatenate(targets)
+
+	return vectors, targets
+
 def main():
 	if torch.cuda.is_available():
 		print("Using cuda...")
@@ -90,11 +110,13 @@ def main():
 
 	max_length = 128
 	batch_size = 16
-	framework = "Semeval Unsupervised via Goemotions bert model embeddings"
-	grouping = "sentiment"
+	framework = "Unsupervised with Goemotions trained bert embeddings"
+	grouping = None
+	dataset = "semeval"
 
 	config.framework = framework
 	config.grouping = grouping
+	config.dataset = dataset
 
 	if grouping == "sentiment":
 		emotions = getSentimentDict().keys()
@@ -104,40 +126,53 @@ def main():
 		emotions.remove("neutral")
 		bertfile = "bert_best.pt"
 
-	newEmotions = getSemEvalEmotions()
-	#newEmotions = getEmotions()
-	#newEmotions.remove("neutral")
+	if dataset == "semeval":
+		newEmotions = getSemEvalEmotions()
+		train = pd.read_csv(DIR + TRAIN_DIR, sep='\t')
+		test = pd.read_csv(DIR + TEST_DIR, sep='\t')
+		dev = pd.read_csv(DIR + DEV_DIR, sep='\t')
+	elif dataset == "goemotions":
+		newEmotions = getEmotions()
+		newEmotions.remove("neutral")
+		train = getTrainSet()
+		test = getTestSet()
+		dev = getValSet()
+	else:
+		print("Invalid dataset")
+		return
 
 	#todo expand emotion labels with wordnet synonyms, defintion, etc.
 
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
-	train = pd.read_csv(DIR + TRAIN_DIR, sep='\t')
-	test = pd.read_csv(DIR + TEST_DIR, sep='\t')
-	dev = pd.read_csv(DIR + DEV_DIR, sep='\t')
+	all_data = pd.concat([train, test])
 
-	#train = getTrainSet()
-	#test = getTestSet()
-	#dev = getValSet()
-
-	all_data = pd.concat([train, test, dev])
-	all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
-	all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
+	if dataset == "semeval":
+		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
+		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
+		dev.Tweet = dev.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
+		dev.Tweet = dev.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
 
 	print(f"Number of tweets: {len(all_data)}")
 
-	data_set = makeBERTDatasetSemEval(all_data, tokenizer, max_length, newEmotions)
-	#data_set = makeBERTDatasetGoEmotions(all_data, tokenizer, max_length, newEmotions)
-	dataloader = DataLoader(data_set, batch_size=batch_size)
+	if dataset == "semeval":
+		test_set = makeBERTDatasetSemEval(all_data, tokenizer, max_length, newEmotions)
+		dev_set = makeBERTDatasetSemEval(dev, tokenizer, max_length, newEmotions)
+	elif dataset == "goemotions":
+		test_set = makeBERTDatasetGoEmotions(all_data, tokenizer, max_length, newEmotions)
+		dev_set = makeBERTDatasetGoEmotions(dev, tokenizer, max_length, newEmotions)
+
+	dataloader = DataLoader(test_set, batch_size=batch_size)
+	devloader = DataLoader(dev_set, batch_size=batch_size)
 
 	bert = BertModel.from_pretrained('bert-base-uncased')
 
 	model = BERT_Model(bert, len(emotions))
 	model = model.to(device)
-	softmax = nn.Softmax(dim=0)
+	sigmoid = nn.Sigmoid()
 
-	checkpoint = torch.load(bertfile)
-	model.load_state_dict(checkpoint['model_state_dict'])
+	#checkpoint = torch.load(bertfile)
+	#model.load_state_dict(checkpoint['model_state_dict'])
 	model.eval()
 
 	emotion_input = tokenizer.batch_encode_plus(
@@ -153,50 +188,70 @@ def main():
 	emotion_vecs = model(emotion_ids.to(device), emotion_mask.to(device))
 	emotion_vecs = emotion_vecs.cpu()
 
-	outputs = []	
-	targets = []
+	#dev tunings
+	dev_vectors, dev_targets = getSentenceRep(devloader, model, device)
+	similarities = []
+	for i, vec in enumerate(dev_vectors):
+		sim = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
+		sim = sigmoid(sim)
+		similarities.append(sim)
 
-	for batch in tqdm(dataloader):
-		seq, mask, labels = batch
+	threshold_options = np.linspace(0,1, num=100)
+	thresholds = []
+	print("Thresholds:")
+	for i, emotion in enumerate(newEmotions):
+		f1s = []
+		for threshold in threshold_options:
+			predictions = []
+			for sim in similarities:
+				predictions.append(int(sim[i] > threshold))
+			f1s.append(f1_score(dev_targets[:,i], predictions))
 
-		targets.append(labels.detach())
+		best_index = np.argmax(f1s)
+		best = threshold_options[best_index]
+		print(f"{emotion}: {best} (F1: {f1s[best_index]})")
+		thresholds.append(best)
 
-		output = model(seq.to(device), mask.to(device))
-		outputs.append(output.detach().cpu())
+	thresholds = np.array(thresholds)
 
-	vectors = torch.Tensor(len(dataloader), 768)
-	torch.cat(outputs, out=vectors)
-
-	targets = np.concatenate(targets)
+	#Evaluation
+	vectors, targets = getSentenceRep(dataloader, model, device)
 	predictions = []
 
-	texts = all_data.Tweet.tolist()
-	#texts = all_data.text.tolist()
+	if dataset == "semeval":
+		texts = all_data.Tweet.tolist()
+	elif dataset == "goemotions":
+		texts = all_data.text.tolist()
 
 	for i, vec in enumerate(vectors):
 		similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
-		soft = softmax(similarities)
+		similarities = sigmoid(similarities)
 		closest = similarities.argsort(descending=True)
+
+		pred = (similarities > threshold).astype(int)
+
 		if i < 5:
 			print(texts[i])
 			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
+			print(f"predicted label: {','.join([newEmotions[index] for index, num in enumerate(pred.tolist()) if num == 1])}")
 			for index in closest:
-				print(f"label: {newEmotions[index]}, similarity: {similarities[index]}, softmax: {soft[index]}\n") 
+				print(f"label: {newEmotions[index]}, similarity: {similarities[index]}\n") 
 		elif i < 20:
 			index = closest[0]
 			print(texts[i])
 			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}")
-			print(f"label: {newEmotions[index]}, similarity: {similarities[index]}, softmax: {soft[index]}\n")
+			print(f"predicted label: {','.join([newEmotions[index] for index, num in enumerate(pred.tolist()) if num == 1])}")
+			print(f"label: {newEmotions[index]}, similarity: {similarities[index]}\n")
 
-		pred = np.zeros(len(newEmotions))
-		pred[closest[0]] = 1
+		#pred = np.zeros(len(newEmotions))
+		#pred[closest[0]] = 1
 		predictions.append(pred)
 
 	print(classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=False))
 	report = classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=True)
 
 	table = wandb.Table(dataframe=pd.DataFrame.from_dict(report))
-	wandb.log({"SemEvalDataset": table})
+	wandb.log({"Unsupervised": table})
 
 
 
