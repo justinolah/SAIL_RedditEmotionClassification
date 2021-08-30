@@ -1,5 +1,6 @@
 from learn import *
 from helpers import *
+from wordnet import getDefinition
 from transformers import BertModel, BertTokenizerFast
 
 from torch.utils.data import TensorDataset, DataLoader
@@ -175,8 +176,13 @@ def main():
 	#model.load_state_dict(checkpoint['model_state_dict'])
 	model.eval()
 
+	#expand labels with definitions
+	expanded = []
+	for emotion in newEmotions:
+		expanded.append(f"{emotion}: {getDefinition(emotion)}")
+
 	emotion_input = tokenizer.batch_encode_plus(
-		newEmotions,
+		expanded,
 		max_length = max_length,
 		padding='max_length',
 		truncation=True
@@ -196,9 +202,10 @@ def main():
 		#sim = sigmoid(sim)
 		similarities.append(sim)
 
-	threshold_options = np.linspace(0.4,0.95, num=50)
+	threshold_options = np.linspace(0.4,0.95, num=30)
 	thresholds = []
 	print("Thresholds:")
+	"""
 	for i, emotion in enumerate(newEmotions):
 		f1s = []
 		for threshold in threshold_options:
@@ -211,6 +218,12 @@ def main():
 		best = threshold_options[best_index]
 		print(f"{emotion}: {best} (F1: {f1s[best_index]}, support: {np.sum(dev_targets[:,i])})")
 		thresholds.append(best)
+	"""
+
+	for i, emotion in enumerate(newEmotions):
+		threshold = np.mean(similarities[predictions[:,i] == 1,i])
+		print(f"{emotion}: {threshold}")
+		thresholds.append(threshold)
 
 	thresholds = np.array(thresholds)
 
