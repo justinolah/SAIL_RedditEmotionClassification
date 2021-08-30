@@ -193,10 +193,10 @@ def main():
 	similarities = []
 	for i, vec in enumerate(dev_vectors):
 		sim = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
-		sim = sigmoid(sim)
+		#sim = sigmoid(sim)
 		similarities.append(sim)
 
-	threshold_options = np.linspace(1,0, num=100)
+	threshold_options = np.linspace(0.4,0.95, num=50)
 	thresholds = []
 	print("Thresholds:")
 	for i, emotion in enumerate(newEmotions):
@@ -209,7 +209,7 @@ def main():
 
 		best_index = np.argmax(f1s)
 		best = threshold_options[best_index]
-		print(f"{emotion}: {best} (F1: {f1s[best_index]}, support: {np.sum(dev_targets[:,i])}, predicted: {np.sum((predictions > best).astype(int))})")
+		print(f"{emotion}: {best} (F1: {f1s[best_index]}, support: {np.sum(dev_targets[:,i])})")
 		thresholds.append(best)
 
 	thresholds = np.array(thresholds)
@@ -225,7 +225,7 @@ def main():
 
 	for i, vec in enumerate(vectors):
 		similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
-		similarities = sigmoid(similarities)
+		#similarities = sigmoid(similarities)
 		closest = similarities.argsort(descending=True)
 
 		pred = (similarities.detach().cpu().numpy() > thresholds).astype(int)
