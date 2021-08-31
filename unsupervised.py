@@ -116,6 +116,7 @@ def getWordRep(texts, wordEmbedding, stopwords, dim):
 		text = text.lower()
 		text = re.sub(r"[^a-z\s]+", " ", text)
 		text = re.sub(r"\s+", " ", text)
+		words = text.split()
 
 		words = [word for word in words if word not in stopwords]
 		
