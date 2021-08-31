@@ -110,24 +110,53 @@ def getCentroids(vecs, labels, emotions):
 	return centroid
 
 
-def getWordRep(text, wordEmbedding, stopwords, dim):
-	text = text.lower()
-	text = re.sub(r"[^a-z\s]+", " ", text)
-	text = re.sub(r"\s+", " ", text)
+def getWordRep(texts, wordEmbedding, stopwords, dim):
+	vecs = []
+	for text in texts:
+		text = text.lower()
+		text = re.sub(r"[^a-z\s]+", " ", text)
+		text = re.sub(r"\s+", " ", text)
 
-	words = [word for word in words if word not in stopwords]
+		words = [word for word in words if word not in stopwords]
+		
+		embeds = [wordEmbedding[word].numpy() for word in words if torch.count_nonzero(wordEmbedding[word]) > 0]
+
+		if len(embeds) == 0:
+			vecs.append(np.zeros(dim))
+		else:
+			vecs.append(np.array(embeds).mean(axis=0))
+	return vecs
+
+def tuneThresholds(similarities, targets, emotions, threshold_options):
+	thresholds = []
 	
-	vecs = [wordEmbedding[word].numpy() for word in words if torch.count_nonzero(wordEmbedding[word]) > 0]
+	for i, emotion in enumerate(emotions):
+		f1s = []
+		for threshold in threshold_options:
+			predictions = []
+			for sim in similarities:
+				predictions.append(int(sim[i] > threshold))
+			f1s.append(f1_score(targets[:,i], predictions))
 
-	if len(vec) == 0:
-		return np.zeros(dim)
+		best_index = np.argmax(f1s)
+		best = threshold_options[best_index]
+		print(f"{emotion}: {best} (F1: {f1s[best_index]}, support: {np.sum(dev_targets[:,i])})")
+		thresholds.append(best)
+	
+	"""
+	for i, emotion in enumerate(newEmotions):
+		threshold = np.mean(similarities[dev_targets[:,i] == 1,i])
+		print(f"{emotion}: {threshold}")
+		thresholds.append(threshold)
+	"""
 
-	return np.array(vecs).mean(axis=0)
+	thresholds = np.array(thresholds)
+	return thresholds
 
 def main():
 	if torch.cuda.is_available():
 		print("Using cuda...")
-		device = torch.device("cuda")
+		device = torch.device("cuda:3")
 	else:
 		print("Using cpu...")
 		device = torch.device("cpu")
@@ -159,6 +188,10 @@ def main():
 		test = pd.read_csv(DIR + TEST_DIR, sep='\t')
 		dev = pd.read_csv(DIR + DEV_DIR, sep='\t')
 		all_data = pd.concat([train, test])
+		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
+		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
+		dev.Tweet = dev.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
+		dev.Tweet = dev.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
 	elif dataset == "goemotions":
 		newEmotions = getEmotions()
 		newEmotions.remove("neutral")
@@ -170,20 +203,18 @@ def main():
 		print("Invalid dataset")
 		return
 
-	if False:
-		wordEmbedding = GloVe(name='twitter.27B', dim=dim)
-		stopwords = getStopWords()
-		emotion_word_vecs = np.array([wordEmbedding[emotion].numpy() for emotion in newEmotions])
+	#Glove word embeddings
+	wordEmbedding = GloVe(name='twitter.27B', dim=dim)
+	stopwords = getStopWords()
+	emotion_word_vecs = np.array([wordEmbedding[emotion].numpy() for emotion in newEmotions]) #todo use mean of synoyms
+	if dataset == "semeval":
+		word_vecs_dev = getWordRep(dev.Tweet.tolist(), wordEmbedding, stopwords, dim)
+		word_vecs_test = getWordRep(all_data.Tweet.tolist(), wordEmbedding, stopwords, dim)
+	elif dataset == "goemotions":
+		word_vecs_dev = getWordRep(dev.text.tolist(), wordEmbedding, stopwords, dim)
+		word_vecs_test = getWordRep(all_data.test.tolist(), wordEmbedding, stopwords, dim)
 
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
-
-	if dataset == "semeval":
-		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
-		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
-		dev.Tweet = dev.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
-		dev.Tweet = dev.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
-
-	print(f"Number of tweets: {len(all_data)}")
 
 	if dataset == "semeval":
 		test_set = makeBERTDatasetSemEval(all_data, tokenizer, max_length, newEmotions)
@@ -225,55 +256,51 @@ def main():
 
 	#dev tunings
 	dev_vectors, dev_targets = getSentenceRep(devloader, model, device)
+	centroids = getCentroids(dev_vectors, dev_targets, newEmotions)
 	similarities = []
+	centroid_similarities = []
 	for i, vec in enumerate(dev_vectors):
 		sim = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
+		centroid_sim = F.cosine_similarity(vec.unsqueeze(0).to(device), centroids.to(device))
 		#sim = sigmoid(sim)
 		similarities.append(sim)
+		centroid_similarities.append(centroid_sim)
 
-	centroids = getCentroids(dev_vectors, dev_targets, newEmotions)
-
-	print("Thresholds:")
+	word_similarities = []
+	for i, vec in enumerate(word_vecs_dev):
+		sim = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_word_vecs.to(device))
+		word_similarities.append(sim)
+	
 	threshold_options = np.linspace(0.4,0.95, num=30)
-	thresholds = []
-	
-	for i, emotion in enumerate(newEmotions):
-		f1s = []
-		for threshold in threshold_options:
-			predictions = []
-			for sim in similarities:
-				predictions.append(int(sim[i] > threshold))
-			f1s.append(f1_score(dev_targets[:,i], predictions))
-
-		best_index = np.argmax(f1s)
-		best = threshold_options[best_index]
-		print(f"{emotion}: {best} (F1: {f1s[best_index]}, support: {np.sum(dev_targets[:,i])})")
-		thresholds.append(best)
-	
-	"""
-	for i, emotion in enumerate(newEmotions):
-		threshold = np.mean(similarities[dev_targets[:,i] == 1,i])
-		print(f"{emotion}: {threshold}")
-		thresholds.append(threshold)
-	"""
-
-	thresholds = np.array(thresholds)
+	print("Sentence Rep Thresholds:")
+	thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options)
+	print("Centroid Thresholds:")
+	thresholds_centroids = tuneThresholds(centroid_similarities, dev_targets, newEmotions, threshold_options)
+	print("Word Centroids:")
+	thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, threshold_options)
 
 	#Evaluation
 	vectors, targets = getSentenceRep(dataloader, model, device)
-	predictions = []
 
 	if dataset == "semeval":
 		texts = all_data.Tweet.tolist()
 	elif dataset == "goemotions":
 		texts = all_data.text.tolist()
 
+	predictions = []
+	predictions_centroids = []
+	predictions_word = []
+
 	for i, vec in enumerate(vectors):
 		similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
 		#similarities = sigmoid(similarities)
+
+		centroid_similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), centroids.to(device))
+
 		closest = similarities.argsort(descending=True)
 
 		pred = (similarities.detach().cpu().numpy() > thresholds).astype(int)
+		pred_centroid = (centroid_similarities.detach().cpu().numpy() > thresholds).astype(int)
 
 		if i < 5:
 			print(texts[i])
@@ -292,9 +319,23 @@ def main():
 		#pred = np.zeros(len(newEmotions))
 		#pred[closest[0]] = 1
 		predictions.append(pred)
+		predictions_centroids.append(pred_centroid)
 
+	for i, vec in enumerate(word_vecs_test):
+		word_similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_word_vecs.to(device))
+		pred = (word_similarities.detach().cpu().numpy() > thresholds_word).astype(int)
+		predictions_word.append(pred)
+		
+	print("Setence Similarity:")
 	print(classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=False))
 	report = classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=True)
+	print("")
+	print("Word Similarity:")
+	print(classification_report(targets, predictions_word, target_names=newEmotions, zero_division=0, output_dict=False))
+	print("")
+	print("Centroid Similarity:")
+	print(classification_report(targets, predictions_centroids, target_names=newEmotions, zero_division=0, output_dict=False))
+	print("")
 
 	table = wandb.Table(dataframe=pd.DataFrame.from_dict(report))
 	wandb.log({"Unsupervised": table})
