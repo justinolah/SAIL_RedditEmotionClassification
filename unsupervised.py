@@ -111,6 +111,7 @@ def getCentroids(vecs, labels, emotions):
 	print(centroids)
 	vectors = torch.Tensor(len(emotions), 768)
 	torch.cat(centroids, out=vectors)
+	pritn(vectors.size())
 	return vectors
 
 
