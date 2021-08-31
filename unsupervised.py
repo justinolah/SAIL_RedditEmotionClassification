@@ -248,7 +248,7 @@ def main():
 	#Glove word embeddings
 	wordEmbedding = GloVe(name='twitter.27B', dim=dim)
 	stopwords = getStopWords()
-	emotion_word_vecs = np.array([wordEmbedding[emotion].numpy() for emotion in newEmotions]) #todo use mean of synoyms
+	emotion_word_vecs = getWordRep(newEmotions, wordEmbedding, stopwords, dim) #todo use mean of synoyms
 	if dataset == "semeval":
 		word_vecs_dev = getWordRep(dev.Tweet.tolist(), wordEmbedding, stopwords, dim)
 		word_vecs_test = getWordRep(all_data.Tweet.tolist(), wordEmbedding, stopwords, dim)
