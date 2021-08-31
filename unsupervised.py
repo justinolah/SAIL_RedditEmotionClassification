@@ -214,7 +214,7 @@ def main():
 		test_set = makeBERTDatasetGoEmotions(all_data, tokenizer, max_length, newEmotions)
 		dev_set = makeBERTDatasetGoEmotions(dev, tokenizer, max_length, newEmotions)
 
-	dataloader = DataLoader(test_set, batch_size=batch_size)
+	testloader = DataLoader(test_set, batch_size=batch_size)
 	devloader = DataLoader(dev_set, batch_size=batch_size)
 
 	bert = BertModel.from_pretrained('bert-base-uncased')
@@ -282,7 +282,7 @@ def main():
 	thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, np.linspace(0 ,0.8, num=40))
 
 	#Evaluation
-	vectors, targets = getSentenceRep(dataloader, model, device)
+	sentence_vecs, targets = getSentenceRep(testloader, model, device)
 
 	if dataset == "semeval":
 		texts = all_data.Tweet.tolist()
@@ -293,7 +293,7 @@ def main():
 	predictions_centroids = []
 	predictions_word = []
 
-	for i, (vec, word_vec) in enumerate(zip(vectors, word_vecs_test)):
+	for i, (vec, word_vec) in enumerate(zip(sentence_vecs, word_vecs_test)):
 		similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
 		centroid_similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), centroids.to(device))
 		word_similarities = F.cosine_similarity(word_vec.unsqueeze(0).to(device), emotion_word_vecs.to(device))
