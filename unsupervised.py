@@ -141,7 +141,7 @@ def tuneThresholds(similarities, targets, emotions, threshold_options):
 
 		best_index = np.argmax(f1s)
 		best = threshold_options[best_index]
-		print(f"{emotion}: {best} (F1: {f1s[best_index]}, support: {np.sum(dev_targets[:,i])})")
+		print(f"{emotion}: {best} (F1: {f1s[best_index]}, support: {np.sum(targets[:,i])})")
 		thresholds.append(best)
 	
 	"""
