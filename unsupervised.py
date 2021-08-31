@@ -99,28 +99,20 @@ def getSentenceRep(dataloader, model, device):
 	vectors = torch.Tensor(num, 768)
 	torch.cat(outputs, out=vectors)
 	targets = np.concatenate(targets)
-	print(vectors.size())
 
 	return vectors, targets
 
 def getCentroids(vecs, labels, emotions):
-	centroids = []
-	print(vecs.size())
 	vectors = torch.Tensor(len(emotions), 768)
 	for i, emotion in enumerate(emotions):
 		centroid = vecs[labels[:,i] == 1].mean(axis=0)
-		print(centroid.size())
-		centroids.append(centroid)
-		vectors[i,:] = centroid
-	#print(centroids)
-	#torch.cat(centroids, out=vectors)
-	print(vectors.size())
-	return vectors
+		centroids[i,:] = centroid
+	return centroids
 
 
 def getWordRep(texts, wordEmbedding, stopwords, dim):
-	vecs = []
-	for text in tqdm(texts):
+	vecs = torch.Tensor(len(texts), dim)
+	for i, text in tqdm(enumerate(texts), total=len(texts)):
 		text = text.lower()
 		text = re.sub(r"[^a-z\s]+", " ", text)
 		text = re.sub(r"\s+", " ", text)
@@ -128,12 +120,12 @@ def getWordRep(texts, wordEmbedding, stopwords, dim):
 
 		words = [word for word in words if word not in stopwords]
 		
-		embeds = [wordEmbedding[word].numpy() for word in words if torch.count_nonzero(wordEmbedding[word]) > 0]
+		embeds = [wordEmbedding[word] for word in words if torch.count_nonzero(wordEmbedding[word]) > 0]
 
 		if len(embeds) == 0:
-			vecs.append(np.zeros(dim))
+			vecs[i,:] = torch.zeros(dim)
 		else:
-			vecs.append(np.array(embeds).mean(axis=0))
+			vecs[i,:] = torch.mean(torch.stack(embeds), 0)
 	return vecs
 
 def tuneThresholds(similarities, targets, emotions, threshold_options):
