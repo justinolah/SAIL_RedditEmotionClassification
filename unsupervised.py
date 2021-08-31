@@ -106,8 +106,9 @@ def getCentroids(vecs, labels, emotions):
 	centroids = []
 	for i, emotion in enumerate(emotions):
 		centroid = vecs[labels[:,i] == 1].mean(axis=0)
+		print(centroid.shape())
 		centroids.append(centroid)
-
+	print(centroids)
 	vectors = torch.Tensor(len(emotions), 768)
 	torch.cat(centroids, out=vectors)
 	return vectors
