@@ -99,6 +99,7 @@ def getSentenceRep(dataloader, model, device):
 	vectors = torch.Tensor(num, 768)
 	torch.cat(outputs, out=vectors)
 	targets = np.concatenate(targets)
+	print(vectors.size())
 
 	return vectors, targets
 
