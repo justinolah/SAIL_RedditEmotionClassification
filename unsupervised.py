@@ -105,13 +105,15 @@ def getSentenceRep(dataloader, model, device):
 
 def getCentroids(vecs, labels, emotions):
 	centroids = []
+	print(vecs.size())
+	vectors = torch.Tensor(len(emotions), 768)
 	for i, emotion in enumerate(emotions):
 		centroid = vecs[labels[:,i] == 1].mean(axis=0)
 		print(centroid.size())
 		centroids.append(centroid)
-	print(centroids)
-	vectors = torch.Tensor(len(emotions), 768)
-	torch.cat(centroids, out=vectors)
+		vectors[i,:] = centroid
+	#print(centroids)
+	#torch.cat(centroids, out=vectors)
 	print(vectors.size())
 	return vectors
 
