@@ -223,7 +223,7 @@ def main():
 	model = model.to(device)
 	sigmoid = nn.Sigmoid()
 
-	checkpoint = torch.load(bertfile)
+	checkpoint = torch.load(bertfile, map_location=device)
 	model.load_state_dict(checkpoint['model_state_dict'])
 	model.eval()
 

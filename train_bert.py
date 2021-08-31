@@ -261,7 +261,7 @@ def main():
 	fig.savefig("plots/learningcurve_" + filename + ".png")
 
 	#Testing metrics
-	bestCheckpoint = torch.load("bert.pt")
+	bestCheckpoint = torch.load("bert.pt", map_location=device)
 	model.load_state_dict(bestCheckpoint['model_state_dict'])
 	bestEpochDevF1 = bestCheckpoint['epoch']
 	bestDevF1 = bestCheckpoint['devF1']
