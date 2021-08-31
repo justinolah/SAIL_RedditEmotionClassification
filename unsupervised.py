@@ -1,6 +1,7 @@
 from learn import *
 from helpers import *
 from wordnet import getDefinition
+from nltk.corpus import stopwords
 from transformers import BertModel, BertTokenizerFast
 from torchtext.vocab import GloVe
 
@@ -143,13 +144,6 @@ def tuneThresholds(similarities, targets, emotions, threshold_options):
 		best = threshold_options[best_index]
 		print(f"{emotion}: {best} (F1: {f1s[best_index]}, support: {np.sum(targets[:,i])})")
 		thresholds.append(best)
-	
-	"""
-	for i, emotion in enumerate(newEmotions):
-		threshold = np.mean(similarities[dev_targets[:,i] == 1,i])
-		print(f"{emotion}: {threshold}")
-		thresholds.append(threshold)
-	"""
 
 	thresholds = np.array(thresholds)
 	return thresholds
@@ -168,12 +162,14 @@ def main():
 	framework = "Unsupervised with Goemotions trained bert embeddings"
 	grouping = None
 	dataset = "semeval"
+	goemotions_trained = True
 	defintion = True
 	dim = 200
 
 	config.framework = framework
 	config.grouping = grouping
 	config.dataset = dataset
+	config.goemotions_trained = goemotions_trained
 	config.defintion = defintion
 
 	if grouping == "sentiment":
@@ -205,6 +201,9 @@ def main():
 		print("Invalid dataset")
 		return
 
+	print(f"Dev set: {len(dev)}")
+	print(f"Test set: {len(all_data)}")
+
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
 	if dataset == "semeval":
@@ -223,8 +222,9 @@ def main():
 	model = model.to(device)
 	sigmoid = nn.Sigmoid()
 
-	checkpoint = torch.load(bertfile, map_location=device)
-	model.load_state_dict(checkpoint['model_state_dict'])
+	if goemotions_trained == True:
+		checkpoint = torch.load(bertfile, map_location=device)
+		model.load_state_dict(checkpoint['model_state_dict'])
 	model.eval()
 
 	#expand labels with definitions
@@ -247,7 +247,7 @@ def main():
 
 	#Glove word embeddings
 	wordEmbedding = GloVe(name='twitter.27B', dim=dim)
-	stopwords = getStopWords()
+	stopwords = stopwords.words('english')
 	emotion_word_vecs = getWordRep(newEmotions, wordEmbedding, stopwords, dim) #todo use mean of synoyms
 	if dataset == "semeval":
 		word_vecs_dev = getWordRep(dev.Tweet.tolist(), wordEmbedding, stopwords, dim)
@@ -331,7 +331,7 @@ def main():
 		predictions_centroids.append(pred_centroid)
 		predictions_word.append(pred_word)
 			
-	print("Setence Similarity:")
+	print("Sentence Similarity:")
 	print(classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=False))
 	report = classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=True)
 	print("")
