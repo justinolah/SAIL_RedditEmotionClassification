@@ -279,7 +279,7 @@ def main():
 	print("Centroid Thresholds:")
 	thresholds_centroids = tuneThresholds(centroid_similarities, dev_targets, newEmotions, threshold_options)
 	print("Word Thresholds:")
-	thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, threshold_options)
+	thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, np.linspace(0 ,0.8, num=40))
 
 	#Evaluation
 	vectors, targets = getSentenceRep(dataloader, model, device)
@@ -293,41 +293,44 @@ def main():
 	predictions_centroids = []
 	predictions_word = []
 
-	for i, vec in enumerate(vectors):
+	for i, (vec, word_vec) in enumerate(zip(vectors, word_vecs_test)):
 		similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
-		#similarities = sigmoid(similarities)
-
 		centroid_similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), centroids.to(device))
-
-		closest = similarities.argsort(descending=True)
+		word_similarities = F.cosine_similarity(word_vec.unsqueeze(0).to(device), emotion_word_vecs.to(device))
 
 		pred = (similarities.detach().cpu().numpy() > thresholds).astype(int)
-		pred_centroid = (centroid_similarities.detach().cpu().numpy() > thresholds).astype(int)
+		pred_centroid = (centroid_similarities.detach().cpu().numpy() > thresholds_centroids).astype(int)
+		pred_word = (word_similarities.detach().cpu().numpy() > thresholds_word).astype(int)
 
 		if i < 5:
 			print(texts[i])
 			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
 			print(f"predicted label: {','.join([newEmotions[index] for index, num in enumerate(pred.tolist()) if num == 1])}")
-			for index in closest:
+			print("Sentence Similarity")
+			for index in similarities.argsort(descending=True):
 				print(f"label: {newEmotions[index]}, similarity: {similarities[index]}") 
 			print("")
-		elif i < 20:
-			index = closest[0]
+		elif i < 10:
 			print(texts[i])
-			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}")
-			print(f"predicted label: {','.join([newEmotions[index] for index, num in enumerate(pred.tolist()) if num == 1])}")
-			print(f"label: {newEmotions[index]}, similarity: {similarities[index]}\n")
+			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
+			print(f"predicted label: {','.join([newEmotions[index] for index, num in enumerate(pred_centroid.tolist()) if num == 1])}")
+			print("Centroid Similarity")
+			for index in centroid_similarities.argsort(descending=True):
+				print(f"label: {newEmotions[index]}, similarity: {centroid_similarities[index]}") 
+			print("")
+		elif i < 15:
+			print(texts[i])
+			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
+			print(f"predicted label: {','.join([newEmotions[index] for index, num in enumerate(pred_word.tolist()) if num == 1])}")
+			print("Word Similarity")
+			for index in word_similarities.argsort(descending=True):
+				print(f"label: {newEmotions[index]}, similarity: {word_similarities[index]}") 
+			print("")
 
-		#pred = np.zeros(len(newEmotions))
-		#pred[closest[0]] = 1
 		predictions.append(pred)
 		predictions_centroids.append(pred_centroid)
-
-	for i, vec in enumerate(word_vecs_test):
-		word_similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_word_vecs.to(device))
-		pred = (word_similarities.detach().cpu().numpy() > thresholds_word).astype(int)
-		predictions_word.append(pred)
-		
+		predictions_word.append(pred_word)
+			
 	print("Setence Similarity:")
 	print(classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=False))
 	report = classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=True)
