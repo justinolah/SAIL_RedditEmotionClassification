@@ -1,6 +1,8 @@
 from learn import *
 from helpers import *
 from wordnet import getDefinition
+
+import nltk
 from nltk.corpus import stopwords
 from transformers import BertModel, BertTokenizerFast
 from torchtext.vocab import GloVe
