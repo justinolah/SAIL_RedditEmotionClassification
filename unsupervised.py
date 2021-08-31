@@ -112,7 +112,7 @@ def getCentroids(vecs, labels, emotions):
 
 def getWordRep(texts, wordEmbedding, stopwords, dim):
 	vecs = []
-	for text in texts:
+	for text in tqdm(texts):
 		text = text.lower()
 		text = re.sub(r"[^a-z\s]+", " ", text)
 		text = re.sub(r"\s+", " ", text)
@@ -205,17 +205,6 @@ def main():
 		print("Invalid dataset")
 		return
 
-	#Glove word embeddings
-	wordEmbedding = GloVe(name='twitter.27B', dim=dim)
-	stopwords = getStopWords()
-	emotion_word_vecs = np.array([wordEmbedding[emotion].numpy() for emotion in newEmotions]) #todo use mean of synoyms
-	if dataset == "semeval":
-		word_vecs_dev = getWordRep(dev.Tweet.tolist(), wordEmbedding, stopwords, dim)
-		word_vecs_test = getWordRep(all_data.Tweet.tolist(), wordEmbedding, stopwords, dim)
-	elif dataset == "goemotions":
-		word_vecs_dev = getWordRep(dev.text.tolist(), wordEmbedding, stopwords, dim)
-		word_vecs_test = getWordRep(all_data.test.tolist(), wordEmbedding, stopwords, dim)
-
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
 	if dataset == "semeval":
@@ -255,6 +244,17 @@ def main():
 
 	emotion_vecs = model(emotion_ids.to(device), emotion_mask.to(device))
 	emotion_vecs = emotion_vecs.cpu()
+
+	#Glove word embeddings
+	wordEmbedding = GloVe(name='twitter.27B', dim=dim)
+	stopwords = getStopWords()
+	emotion_word_vecs = np.array([wordEmbedding[emotion].numpy() for emotion in newEmotions]) #todo use mean of synoyms
+	if dataset == "semeval":
+		word_vecs_dev = getWordRep(dev.Tweet.tolist(), wordEmbedding, stopwords, dim)
+		word_vecs_test = getWordRep(all_data.Tweet.tolist(), wordEmbedding, stopwords, dim)
+	elif dataset == "goemotions":
+		word_vecs_dev = getWordRep(dev.text.tolist(), wordEmbedding, stopwords, dim)
+		word_vecs_test = getWordRep(all_data.test.tolist(), wordEmbedding, stopwords, dim)
 
 	#dev tunings
 	dev_vectors, dev_targets = getSentenceRep(devloader, model, device)
