@@ -111,7 +111,7 @@ def getCentroids(vecs, labels, emotions):
 	return centroids
 
 
-def getWordRep(texts, wordEmbedding, stopwords, dim):
+def getWordRep(texts, wordEmbedding, stop_words, dim):
 	vecs = torch.Tensor(len(texts), dim)
 	for i, text in tqdm(enumerate(texts), total=len(texts)):
 		text = text.lower()
@@ -119,7 +119,7 @@ def getWordRep(texts, wordEmbedding, stopwords, dim):
 		text = re.sub(r"\s+", " ", text)
 		words = text.split()
 
-		words = [word for word in words if word not in stopwords]
+		words = [word for word in words if word not in stop_words]
 		
 		embeds = [wordEmbedding[word] for word in words if torch.count_nonzero(wordEmbedding[word]) > 0]
 
@@ -247,14 +247,14 @@ def main():
 
 	#Glove word embeddings
 	wordEmbedding = GloVe(name='twitter.27B', dim=dim)
-	stopwords = stopwords.words('english')
-	emotion_word_vecs = getWordRep(newEmotions, wordEmbedding, stopwords, dim) #todo use mean of synoyms
+	stop_words = stopwords.words('english')
+	emotion_word_vecs = getWordRep(newEmotions, wordEmbedding, stop_words, dim) #todo use mean of synoyms
 	if dataset == "semeval":
-		word_vecs_dev = getWordRep(dev.Tweet.tolist(), wordEmbedding, stopwords, dim)
-		word_vecs_test = getWordRep(all_data.Tweet.tolist(), wordEmbedding, stopwords, dim)
+		word_vecs_dev = getWordRep(dev.Tweet.tolist(), wordEmbedding, stop_words, dim)
+		word_vecs_test = getWordRep(all_data.Tweet.tolist(), wordEmbedding, stop_words, dim)
 	elif dataset == "goemotions":
-		word_vecs_dev = getWordRep(dev.text.tolist(), wordEmbedding, stopwords, dim)
-		word_vecs_test = getWordRep(all_data.test.tolist(), wordEmbedding, stopwords, dim)
+		word_vecs_dev = getWordRep(dev.text.tolist(), wordEmbedding, stop_words, dim)
+		word_vecs_test = getWordRep(all_data.test.tolist(), wordEmbedding, stop_words, dim)
 
 	#dev tunings
 	dev_vectors, dev_targets = getSentenceRep(devloader, model, device)
