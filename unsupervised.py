@@ -162,8 +162,8 @@ def tuneThresholds(similarities, targets, emotions, threshold_options):
 def main():
 	if torch.cuda.is_available():
 		print("Using cuda...")
-		torch.cuda.set_device(3)
-		device = torch.device("cuda:3")
+		torch.cuda.set_device(2)
+		device = torch.device("cuda:2")
 	else:
 		print("Using cpu...")
 		device = torch.device("cpu")
