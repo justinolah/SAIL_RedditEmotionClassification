@@ -2,6 +2,7 @@ from learn import *
 from helpers import *
 from wordnet import getDefinition
 from transformers import BertModel, BertTokenizerFast
+from torchtext.vocab import GloVe
 
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.metrics import classification_report, f1_score
@@ -101,6 +102,28 @@ def getSentenceRep(dataloader, model, device):
 
 	return vectors, targets
 
+def getCentroids(vecs, labels, emotions):
+	centroids = []
+	for i, emotion in enumerate(emotions):
+		centroid = vecs[labels[:,i] == 1].mean(axis=0)
+		centroids.append(centroid)
+	return centroid
+
+
+def getWordRep(text, wordEmbedding, stopwords, dim):
+	text = text.lower()
+	text = re.sub(r"[^a-z\s]+", " ", text)
+	text = re.sub(r"\s+", " ", text)
+
+	words = [word for word in words if word not in stopwords]
+	
+	vecs = [wordEmbedding[word].numpy() for word in words if torch.count_nonzero(wordEmbedding[word]) > 0]
+
+	if len(vec) == 0:
+		return np.zeros(dim)
+
+	return np.array(vecs).mean(axis=0)
+
 def main():
 	if torch.cuda.is_available():
 		print("Using cuda...")
@@ -114,10 +137,13 @@ def main():
 	framework = "Unsupervised with Goemotions trained bert embeddings"
 	grouping = None
 	dataset = "semeval"
+	defintion = True
+	dim = 200
 
 	config.framework = framework
 	config.grouping = grouping
 	config.dataset = dataset
+	config.defintion = defintion
 
 	if grouping == "sentiment":
 		emotions = getSentimentDict().keys()
@@ -132,21 +158,24 @@ def main():
 		train = pd.read_csv(DIR + TRAIN_DIR, sep='\t')
 		test = pd.read_csv(DIR + TEST_DIR, sep='\t')
 		dev = pd.read_csv(DIR + DEV_DIR, sep='\t')
+		all_data = pd.concat([train, test])
 	elif dataset == "goemotions":
 		newEmotions = getEmotions()
 		newEmotions.remove("neutral")
-		train = getTrainSet()
+		#train = getTrainSet()
 		test = getTestSet()
 		dev = getValSet()
+		all_data = test
 	else:
 		print("Invalid dataset")
 		return
 
-	#todo expand emotion labels with wordnet synonyms, defintion, etc.
+	if False:
+		wordEmbedding = GloVe(name='twitter.27B', dim=dim)
+		stopwords = getStopWords()
+		emotion_word_vecs = np.array([wordEmbedding[emotion].numpy() for emotion in newEmotions])
 
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
-
-	all_data = pd.concat([train, test])
 
 	if dataset == "semeval":
 		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
@@ -182,7 +211,7 @@ def main():
 		expanded.append(f"{emotion}: {getDefinition(emotion)}")
 
 	emotion_input = tokenizer.batch_encode_plus(
-		expanded,
+		(expanded if defintion == True else newEmotions),
 		max_length = max_length,
 		padding='max_length',
 		truncation=True
@@ -202,9 +231,11 @@ def main():
 		#sim = sigmoid(sim)
 		similarities.append(sim)
 
+	centroids = getCentroids(dev_vectors, dev_targets, newEmotions)
+
+	print("Thresholds:")
 	threshold_options = np.linspace(0.4,0.95, num=30)
 	thresholds = []
-	print("Thresholds:")
 	
 	for i, emotion in enumerate(newEmotions):
 		f1s = []
