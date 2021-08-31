@@ -103,7 +103,7 @@ def getSentenceRep(dataloader, model, device):
 	return vectors, targets
 
 def getCentroids(vecs, labels, emotions):
-	vectors = torch.Tensor(len(emotions), 768)
+	centroids = torch.Tensor(len(emotions), 768)
 	for i, emotion in enumerate(emotions):
 		centroid = vecs[labels[:,i] == 1].mean(axis=0)
 		centroids[i,:] = centroid
@@ -278,7 +278,7 @@ def main():
 	thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options)
 	print("Centroid Thresholds:")
 	thresholds_centroids = tuneThresholds(centroid_similarities, dev_targets, newEmotions, threshold_options)
-	print("Word Centroids:")
+	print("Word Thresholds:")
 	thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, threshold_options)
 
 	#Evaluation
