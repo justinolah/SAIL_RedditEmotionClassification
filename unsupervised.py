@@ -107,7 +107,7 @@ def getCentroids(vecs, labels, emotions):
 	for i, emotion in enumerate(emotions):
 		centroid = vecs[labels[:,i] == 1].mean(axis=0)
 		centroids.append(centroid)
-	return centroid
+	return centroids
 
 
 def getWordRep(texts, wordEmbedding, stopwords, dim):
