@@ -146,6 +146,7 @@ def tuneThresholds(similarities, targets, emotions, threshold_options):
 		best = threshold_options[best_index]
 		print(f"{emotion}: {best} (F1: {f1s[best_index]}, support: {np.sum(targets[:,i])})")
 		thresholds.append(best)
+	print("")
 
 	thresholds = np.array(thresholds)
 	return thresholds
@@ -256,7 +257,7 @@ def main():
 		word_vecs_test = getWordRep(all_data.Tweet.tolist(), wordEmbedding, stop_words, dim)
 	elif dataset == "goemotions":
 		word_vecs_dev = getWordRep(dev.text.tolist(), wordEmbedding, stop_words, dim)
-		word_vecs_test = getWordRep(all_data.test.tolist(), wordEmbedding, stop_words, dim)
+		word_vecs_test = getWordRep(all_data.text.tolist(), wordEmbedding, stop_words, dim)
 
 	#dev tunings
 	dev_vectors, dev_targets = getSentenceRep(devloader, model, device)
