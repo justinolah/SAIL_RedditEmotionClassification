@@ -119,11 +119,8 @@ def main():
 	batch_size = 16
 	max_length = 128
 	weight_decay = 0
-	lr_decay = 0.95
 	threshold = 0.5
 	lr = 5e-5
-	init_lr = lr
-	decay_start = 5
 	filename = "bert"
 	framework = "bert"
 	grouping = None
@@ -134,9 +131,7 @@ def main():
 	config.batch_size = batch_size
 	config.max_length = max_length
 	config.weight_decay = weight_decay
-	config.lr_decay = lr_decay
 	config.lr = lr
-	config.decay_start = decay_start
 	config.freeze_bert = freeze_bert
 	config.framework = framework
 	config.grouping = grouping
@@ -241,17 +236,13 @@ def main():
 				'devF1' : devF1[-1],
 				}, "bert.pt")
 
-		if epoch > decay_start:
-			lr *= lr_decay
-			optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-
 	print("Training complete\n")
 
 	#learning curve 
 	fig, (ax1, ax2) = plt.subplots(2, figsize=(11, 9))
 	ax1.plot(trainLoss, color='b', label='Training loss')
 	ax1.plot(devLoss, color='r', label='Dev loss')
-	fig.suptitle(f"Bert Arch. LR:{init_lr}, BS:{batch_size}")
+	fig.suptitle(f"Bert Arch. LR:{lr}, BS:{batch_size}")
 	ax1.set(xlabel='Epochs', ylabel="Loss")
 	ax1.legend()
 	ax2.plot(trainF1, color='b', label='Training Macro F1')
