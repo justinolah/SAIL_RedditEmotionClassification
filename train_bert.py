@@ -138,7 +138,8 @@ def main():
 
 	if torch.cuda.is_available():
 		print("Using cuda...")
-		device = torch.device("cuda")
+		torch.cuda.set_device(2)
+		device = torch.device("cuda:2")
 	else:
 		print("Using cpu...")
 		device = torch.device("cpu")
