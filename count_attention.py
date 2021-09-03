@@ -22,7 +22,7 @@ torch.backends.cudnn.benchmark = False
 
 latex_special_token = ["!@#$%^&*()"]
 
-common_words = ["the", "to", "that", "for", "in", "of", "and", "it", "be", "is", "them", "they", "we", "you", "about", "has", "have", "had", "this", "about", "on", "[UNK]", "at", "there", "my", "re", "made"]
+common_words = ["the", "to", "that", "for", "in", "of", "with","im", "by", "an", "are", "was", "will", "as","do", "and", "him", "her", "it", "be", "is", "them", "they", "we", "you", "your", "about", "has", "have", "had", "this", "about", "on", "[UNK]", "at", "there", "my", "re", "made"]
 
 class BERT_Model(nn.Module):
 	def __init__(self, bert, numEmotions):
@@ -150,7 +150,7 @@ def main():
 
 	avg_scores = word_scores.copy()
 
-	max_words = 100
+	max_words = 90
 
 	freq = {}
 
