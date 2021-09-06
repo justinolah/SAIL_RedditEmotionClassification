@@ -189,13 +189,14 @@ def main():
 	goemotions_trained = True
 	defintion = True
 	dim = 200
-	setence = "s-bert"
+	sentence = "s-bert"
 
 	testsplit = 0.9
 
 	config.framework = framework
 	config.grouping = grouping
 	config.dataset = dataset
+	config.sentence = sentence
 	config.goemotions_trained = goemotions_trained
 	config.defintion = defintion
 
