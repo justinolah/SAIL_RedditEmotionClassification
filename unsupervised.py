@@ -104,7 +104,7 @@ def getSemEvalEmotions():
 	with open(SEMEVAL_EMOTIONS_FILE) as f:
 		return f.read().splitlines()
 
-def getSentenceRep(dataloader, model, device):
+def getSentenceRep(dataloader, model, sentence_dim, device):
 	outputs = []	
 	targets = []
 	num = 0
@@ -118,14 +118,14 @@ def getSentenceRep(dataloader, model, device):
 		output = model(seq.to(device), mask.to(device))
 		outputs.append(output.detach().cpu())
 
-	vectors = torch.Tensor(num, 768)
+	vectors = torch.Tensor(num, sentence_dim)
 	torch.cat(outputs, out=vectors)
 	targets = np.concatenate(targets)
 
 	return vectors, targets
 
-def getCentroids(vecs, labels, emotions):
-	centroids = torch.Tensor(len(emotions), 768)
+def getCentroids(vecs, labels, emotions, sentence_dim):
+	centroids = torch.Tensor(len(emotions), sentence_dim)
 	for i, emotion in enumerate(emotions):
 		centroid = vecs[labels[:,i] == 1].mean(axis=0)
 		centroids[i,:] = centroid
@@ -188,7 +188,7 @@ def main():
 	dataset = "semeval"
 	goemotions_trained = True
 	defintion = True
-	dim = 200
+	word_dim = 200
 	sentence = "s-bert"
 
 	testsplit = 0.9
@@ -248,11 +248,12 @@ def main():
 
 	if sentence == "s-bert":
 		sbert = AutoModel.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
+		sentence_dim = 384
 		model = SBERT_Model(sbert)
 		model = model.to(device)
 	else:
 		bert = BertModel.from_pretrained('bert-base-uncased')
-
+		sentence_dim = 768
 		model = BERT_Model(bert, len(emotions))
 		model = model.to(device)
 
@@ -281,18 +282,18 @@ def main():
 	emotion_vecs = emotion_vecs.cpu()
 
 	#Glove word embeddings
-	wordEmbedding = GloVe(name='twitter.27B', dim=dim)
+	wordEmbedding = GloVe(name='twitter.27B', dim=word_dim)
 	stop_words = stopwords.words('english')
-	emotion_word_vecs = getWordRep(newEmotions, wordEmbedding, stop_words, dim) #todo use mean of synoyms
+	emotion_word_vecs = getWordRep(newEmotions, wordEmbedding, stop_words, word_dim)
 	if dataset == "semeval":
-		word_vecs_dev = getWordRep(dev.Tweet.tolist(), wordEmbedding, stop_words, dim)
-		word_vecs_test = getWordRep(test_data.Tweet.tolist(), wordEmbedding, stop_words, dim)
+		word_vecs_dev = getWordRep(dev.Tweet.tolist(), wordEmbedding, stop_words, word_dim)
+		word_vecs_test = getWordRep(test_data.Tweet.tolist(), wordEmbedding, stop_words, word_dim)
 	elif dataset == "goemotions":
-		word_vecs_dev = getWordRep(dev.text.tolist(), wordEmbedding, stop_words, dim)
-		word_vecs_test = getWordRep(test_data.text.tolist(), wordEmbedding, stop_words, dim)
+		word_vecs_dev = getWordRep(dev.text.tolist(), wordEmbedding, stop_words, word_dim)
+		word_vecs_test = getWordRep(test_data.text.tolist(), wordEmbedding, stop_words, word_dim)
 
 	#dev tunings
-	dev_vectors, dev_targets = getSentenceRep(devloader, model, device)
+	dev_vectors, dev_targets = getSentenceRep(devloader, model, sentence_dim, device)
 	centroids = getCentroids(dev_vectors, dev_targets, newEmotions)
 	similarities = []
 	centroid_similarities = []
@@ -316,7 +317,7 @@ def main():
 	thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, np.linspace(0 ,0.8, num=40))
 
 	#Evaluation
-	sentence_vecs, targets = getSentenceRep(testloader, model, device)
+	sentence_vecs, targets = getSentenceRep(testloader, model, sentence_dim, device)
 
 	if dataset == "semeval":
 		texts = test_data.Tweet.tolist()
