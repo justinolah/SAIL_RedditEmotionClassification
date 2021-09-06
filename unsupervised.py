@@ -91,7 +91,7 @@ class SBERT_Model(nn.Module):
 
 	def forward(self, sent_id, mask):
 		output = self.sbert(sent_id, attention_mask=mask)
-		return mean_pooling(output, mask)
+		return self.mean_pooling(output, mask)
 
 	def mean_pooling(model_output, attention_mask):
 	    token_embeddings = model_output[0] #First element of model_output contains all token embeddings
