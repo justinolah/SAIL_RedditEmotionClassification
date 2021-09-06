@@ -9,6 +9,9 @@ from torchtext.vocab import GloVe
 
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.metrics import classification_report, f1_score
+from sklearn.model_selection import train_test_split
+
+from transformers import AutoTokenizer, AutoModel
 
 from tqdm import tqdm
 
@@ -80,6 +83,22 @@ class BERT_Model(nn.Module):
 		_, cls_hs = self.bert(sent_id, attention_mask=mask, return_dict=False)
 		#out = self.fc(cls_hs)
 		return cls_hs
+
+class SBERT_Model(nn.Module):
+	def __init__(self, sbert):
+		super(SBERT_Model, self).__init__()
+		self.sbert = sbert
+
+	def forward(self, sent_id, mask):
+		output = sbert(sent_id, attention_mask=mask)
+		return mean_pooling(output, mask)
+
+	def mean_pooling(model_output, attention_mask):
+	    token_embeddings = model_output[0] #First element of model_output contains all token embeddings
+	    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+	    sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1)
+	    sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+	    return sum_embeddings / sum_mask
 
 def getSemEvalEmotions():
 	with open(SEMEVAL_EMOTIONS_FILE) as f:
@@ -160,6 +179,8 @@ def main():
 		print("Using cpu...")
 		device = torch.device("cpu")
 
+	confusion = True
+
 	max_length = 128
 	batch_size = 16
 	framework = "Unsupervised with Goemotions trained bert embeddings"
@@ -168,6 +189,9 @@ def main():
 	goemotions_trained = True
 	defintion = True
 	dim = 200
+	setence = "s-bert"
+
+	testsplit = 0.9
 
 	config.framework = framework
 	config.grouping = grouping
@@ -188,46 +212,53 @@ def main():
 		train = pd.read_csv(DIR + TRAIN_DIR, sep='\t')
 		test = pd.read_csv(DIR + TEST_DIR, sep='\t')
 		dev = pd.read_csv(DIR + DEV_DIR, sep='\t')
-		all_data = pd.concat([train, test])
+		all_data = pd.concat([train, test, dev])
 		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
 		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
-		dev.Tweet = dev.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
-		dev.Tweet = dev.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
 	elif dataset == "goemotions":
 		newEmotions = getEmotions()
 		newEmotions.remove("neutral")
-		#train = getTrainSet()
 		test = getTestSet()
 		dev = getValSet()
-		all_data = test
+		all_data = pd.concat([test, dev])
 	else:
 		print("Invalid dataset")
 		return
 
-	print(f"Dev set: {len(dev)}")
-	print(f"Test set: {len(all_data)}")
+	dev_data, test_data = train_test_split(all_data, test_size=testsplit, random_state=42)
 
-	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
+	print(f"Dev set: {len(dev_data)}")
+	print(f"Test set: {len(test_data)}")
+
+	if sentence == "s-bert":
+		tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
+	else:
+		tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
 	if dataset == "semeval":
-		test_set = makeBERTDatasetSemEval(all_data, tokenizer, max_length, newEmotions)
-		dev_set = makeBERTDatasetSemEval(dev, tokenizer, max_length, newEmotions)
+		test_set = makeBERTDatasetSemEval(test_data, tokenizer, max_length, newEmotions)
+		dev_set = makeBERTDatasetSemEval(dev_data, tokenizer, max_length, newEmotions)
 	elif dataset == "goemotions":
-		test_set = makeBERTDatasetGoEmotions(all_data, tokenizer, max_length, newEmotions)
-		dev_set = makeBERTDatasetGoEmotions(dev, tokenizer, max_length, newEmotions)
+		test_set = makeBERTDatasetGoEmotions(test_data, tokenizer, max_length, newEmotions)
+		dev_set = makeBERTDatasetGoEmotions(dev_data, tokenizer, max_length, newEmotions)
 
 	testloader = DataLoader(test_set, batch_size=batch_size)
 	devloader = DataLoader(dev_set, batch_size=batch_size)
 
-	bert = BertModel.from_pretrained('bert-base-uncased')
+	if sentence == "s-bert":
+		sbert = AutoModel.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
+		model = SBERT_Model(sbert)
+		model = model.to(device)
+	else:
+		bert = BertModel.from_pretrained('bert-base-uncased')
 
-	model = BERT_Model(bert, len(emotions))
-	model = model.to(device)
-	sigmoid = nn.Sigmoid()
+		model = BERT_Model(bert, len(emotions))
+		model = model.to(device)
 
-	if goemotions_trained == True:
-		checkpoint = torch.load(bertfile, map_location=device)
-		model.load_state_dict(checkpoint['model_state_dict'])
+		if goemotions_trained == True:
+			checkpoint = torch.load(bertfile, map_location=device)
+			model.load_state_dict(checkpoint['model_state_dict'])
+
 	model.eval()
 
 	#expand labels with definitions
@@ -254,10 +285,10 @@ def main():
 	emotion_word_vecs = getWordRep(newEmotions, wordEmbedding, stop_words, dim) #todo use mean of synoyms
 	if dataset == "semeval":
 		word_vecs_dev = getWordRep(dev.Tweet.tolist(), wordEmbedding, stop_words, dim)
-		word_vecs_test = getWordRep(all_data.Tweet.tolist(), wordEmbedding, stop_words, dim)
+		word_vecs_test = getWordRep(test_data.Tweet.tolist(), wordEmbedding, stop_words, dim)
 	elif dataset == "goemotions":
 		word_vecs_dev = getWordRep(dev.text.tolist(), wordEmbedding, stop_words, dim)
-		word_vecs_test = getWordRep(all_data.text.tolist(), wordEmbedding, stop_words, dim)
+		word_vecs_test = getWordRep(test_data.text.tolist(), wordEmbedding, stop_words, dim)
 
 	#dev tunings
 	dev_vectors, dev_targets = getSentenceRep(devloader, model, device)
@@ -267,7 +298,6 @@ def main():
 	for i, vec in enumerate(dev_vectors):
 		sim = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
 		centroid_sim = F.cosine_similarity(vec.unsqueeze(0).to(device), centroids.to(device))
-		#sim = sigmoid(sim)
 		similarities.append(sim)
 		centroid_similarities.append(centroid_sim)
 
@@ -288,13 +318,17 @@ def main():
 	sentence_vecs, targets = getSentenceRep(testloader, model, device)
 
 	if dataset == "semeval":
-		texts = all_data.Tweet.tolist()
+		texts = test_data.Tweet.tolist()
 	elif dataset == "goemotions":
-		texts = all_data.text.tolist()
+		texts = test_data.text.tolist()
 
 	predictions = []
 	predictions_centroids = []
 	predictions_word = []
+
+	outputs_sentence = []
+	outputs_centroid = []
+	outputs_word = []
 
 	for i, (vec, word_vec) in enumerate(zip(sentence_vecs, word_vecs_test)):
 		similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
@@ -304,6 +338,10 @@ def main():
 		pred = (similarities.detach().cpu().numpy() > thresholds).astype(int)
 		pred_centroid = (centroid_similarities.detach().cpu().numpy() > thresholds_centroids).astype(int)
 		pred_word = (word_similarities.detach().cpu().numpy() > thresholds_word).astype(int)
+
+		outputs_sentence.append(similarities.detach().cpu())
+		outputs_centroid.append(centroid_similarities.detach().cpu())
+		outputs_word.append(word_similarities.detach().cpu())
 
 		if i < 5:
 			print(texts[i])
@@ -333,6 +371,10 @@ def main():
 		predictions.append(pred)
 		predictions_centroids.append(pred_centroid)
 		predictions_word.append(pred_word)
+
+	outputs_sentence = np.concatenate(outputs_sentence)
+	outputs_centroid = np.concatenate(outputs_centroid)
+	outputs_word = np.concatenate(outputs_word)
 			
 	print("Sentence Similarity:")
 	print(classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=False))
@@ -347,6 +389,11 @@ def main():
 
 	table = wandb.Table(dataframe=pd.DataFrame.from_dict(report))
 	wandb.log({"Unsupervised": table})
+
+	if confusion == True:
+		multilabel_confusion_matrix(np.array(targets), np.array(outputs_sentence), emotions, top_x=3, filename=f"{dataset}_unsupervised_sentence")
+		multilabel_confusion_matrix(np.array(targets), np.array(outputs_centroid), emotions, top_x=3, filename=f"{dataset}_unsupervised_centroid")
+		multilabel_confusion_matrix(np.array(targets), np.array(outputs_word), emotions, top_x=3, filename=f"{dataset}_unsupervised_word")
 
 
 
