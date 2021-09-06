@@ -294,7 +294,7 @@ def main():
 
 	#dev tunings
 	dev_vectors, dev_targets = getSentenceRep(devloader, model, sentence_dim, device)
-	centroids = getCentroids(dev_vectors, dev_targets, newEmotions)
+	centroids = getCentroids(dev_vectors, dev_targets, newEmotions, sentence_dim)
 	similarities = []
 	centroid_similarities = []
 	for i, vec in enumerate(dev_vectors):
