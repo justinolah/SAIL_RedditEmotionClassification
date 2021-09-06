@@ -145,7 +145,7 @@ def getWordRep(texts, wordEmbedding, stop_words, word_dim):
 		embeds = [wordEmbedding[word] for word in words if torch.count_nonzero(wordEmbedding[word]) > 0]
 
 		if len(embeds) == 0:
-			vecs[i,:] = torch.zeros(dim)
+			vecs[i,:] = torch.zeros(word_dim)
 		else:
 			vecs[i,:] = torch.mean(torch.stack(embeds), 0)
 	return vecs
