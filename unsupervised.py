@@ -90,7 +90,7 @@ class SBERT_Model(nn.Module):
 		self.sbert = sbert
 
 	def forward(self, sent_id, mask):
-		output = sbert(sent_id, attention_mask=mask)
+		output = self.sbert(sent_id, attention_mask=mask)
 		return mean_pooling(output, mask)
 
 	def mean_pooling(model_output, attention_mask):
