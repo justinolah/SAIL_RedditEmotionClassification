@@ -94,11 +94,11 @@ class SBERT_Model(nn.Module):
 		return self.mean_pooling(output, mask)
 
 	def mean_pooling(self, model_output, attention_mask):
-	    token_embeddings = model_output[0] #First element of model_output contains all token embeddings
-	    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-	    sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1)
-	    sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
-	    return sum_embeddings / sum_mask
+		token_embeddings = model_output[0] #First element of model_output contains all token embeddings
+		input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+		sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1)
+		sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+		return sum_embeddings / sum_mask
 
 def getSemEvalEmotions():
 	with open(SEMEVAL_EMOTIONS_FILE) as f:
@@ -179,13 +179,14 @@ def main():
 		print("Using cpu...")
 		device = torch.device("cpu")
 
-	confusion = True
+	confusion = False
 
 	max_length = 128
 	batch_size = 16
 	framework = "Unsupervised with Goemotions trained bert embeddings"
 	grouping = None
 	dataset = "semeval"
+	tune_thresholds = True
 	goemotions_trained = True
 	defintion = True
 	word_dim = 200
@@ -197,6 +198,7 @@ def main():
 	config.grouping = grouping
 	config.dataset = dataset
 	config.sentence = sentence
+	config.tune_thresholds = tune_thresholds
 	config.goemotions_trained = goemotions_trained
 	config.defintion = defintion
 
@@ -226,9 +228,9 @@ def main():
 		print("Invalid dataset")
 		return
 
-		print(f"Dataset: {len(all_data)}")
-
 	dev_data, test_data = train_test_split(all_data, test_size=testsplit, random_state=42)
+	print(f"Dev Set: {len(dev_data)}")
+	print(f"Test Set: {len(test_data)}")
 
 	if sentence == "s-bert":
 		tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
@@ -307,13 +309,18 @@ def main():
 		sim = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_word_vecs.to(device))
 		word_similarities.append(sim)
 	
-	threshold_options = np.linspace(0.4,0.95, num=30)
-	print("Sentence Rep Thresholds:")
-	thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options)
-	print("Centroid Thresholds:")
-	thresholds_centroids = tuneThresholds(centroid_similarities, dev_targets, newEmotions, threshold_options)
-	print("Word Thresholds:")
-	thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, np.linspace(0 ,0.8, num=40))
+	if tune_thresholds == True:
+		threshold_options = np.linspace(0.2,0.95, num=30)
+		print("Sentence Rep Thresholds:")
+		thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options)
+		print("Centroid Thresholds:")
+		thresholds_centroids = tuneThresholds(centroid_similarities, dev_targets, newEmotions, threshold_options)
+		print("Word Thresholds:")
+		thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, threshold_options)
+	else:
+		thresholds = 0.5 * np.ones(len(newEmotions))
+		thresholds_centroids = 0.5 * np.ones(len(newEmotions))
+		thresholds_word = 0.5 * np.ones(len(newEmotions))
 
 	#Evaluation
 	sentence_vecs, targets = getSentenceRep(testloader, model, sentence_dim, device)
@@ -392,9 +399,9 @@ def main():
 	wandb.log({"Unsupervised": table})
 
 	if confusion == True:
-		multilabel_confusion_matrix(np.array(targets), np.array(outputs_sentence), emotions, top_x=3, filename=f"{dataset}_unsupervised_sentence")
-		multilabel_confusion_matrix(np.array(targets), np.array(outputs_centroid), emotions, top_x=3, filename=f"{dataset}_unsupervised_centroid")
-		multilabel_confusion_matrix(np.array(targets), np.array(outputs_word), emotions, top_x=3, filename=f"{dataset}_unsupervised_word")
+		multilabel_confusion_matrix(np.array(targets), np.array(outputs_sentence), newEmotions, top_x=3, filename=f"{dataset}_unsupervised_sentence")
+		multilabel_confusion_matrix(np.array(targets), np.array(outputs_centroid), newEmotions, top_x=3, filename=f"{dataset}_unsupervised_centroid")
+		multilabel_confusion_matrix(np.array(targets), np.array(outputs_word), newEmotions, top_x=3, filename=f"{dataset}_unsupervised_word")
 
 
 
