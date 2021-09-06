@@ -132,8 +132,8 @@ def getCentroids(vecs, labels, emotions, sentence_dim):
 	return centroids
 
 
-def getWordRep(texts, wordEmbedding, stop_words, dim):
-	vecs = torch.Tensor(len(texts), dim)
+def getWordRep(texts, wordEmbedding, stop_words, word_dim):
+	vecs = torch.Tensor(len(texts), word_dim)
 	for i, text in tqdm(enumerate(texts), total=len(texts)):
 		text = text.lower()
 		text = re.sub(r"[^a-z\s]+", " ", text)
@@ -226,10 +226,9 @@ def main():
 		print("Invalid dataset")
 		return
 
-	dev_data, test_data = train_test_split(all_data, test_size=testsplit, random_state=42)
+		print(f"Dataset: {len(all_data)}")
 
-	print(f"Dev set: {len(dev_data)}")
-	print(f"Test set: {len(test_data)}")
+	dev_data, test_data = train_test_split(all_data, test_size=testsplit, random_state=42)
 
 	if sentence == "s-bert":
 		tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
@@ -286,10 +285,10 @@ def main():
 	stop_words = stopwords.words('english')
 	emotion_word_vecs = getWordRep(newEmotions, wordEmbedding, stop_words, word_dim)
 	if dataset == "semeval":
-		word_vecs_dev = getWordRep(dev.Tweet.tolist(), wordEmbedding, stop_words, word_dim)
+		word_vecs_dev = getWordRep(dev_data.Tweet.tolist(), wordEmbedding, stop_words, word_dim)
 		word_vecs_test = getWordRep(test_data.Tweet.tolist(), wordEmbedding, stop_words, word_dim)
 	elif dataset == "goemotions":
-		word_vecs_dev = getWordRep(dev.text.tolist(), wordEmbedding, stop_words, word_dim)
+		word_vecs_dev = getWordRep(dev_data.text.tolist(), wordEmbedding, stop_words, word_dim)
 		word_vecs_test = getWordRep(test_data.text.tolist(), wordEmbedding, stop_words, word_dim)
 
 	#dev tunings
