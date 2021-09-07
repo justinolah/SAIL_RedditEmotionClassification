@@ -179,7 +179,7 @@ def main():
 		print("Using cpu...")
 		device = torch.device("cpu")
 
-	confusion = False
+	confusion = True
 
 	max_length = 128
 	batch_size = 16
@@ -310,13 +310,19 @@ def main():
 		word_similarities.append(sim)
 	
 	if tune_thresholds == True:
-		threshold_options = np.linspace(0.2,0.95, num=30)
+		if sentence == "s-bert":
+			threshold_options_sentence = np.linspace(0.05,0.5, num=30)
+		else:
+			threshold_options_sentence = np.linspace(0.4,0.95, num=30)
+
+		threshold_options_centroids = np.linspace(0.1,0.6, num=30)
+		threshold_options_word = np.linspace(0.2,0.8, num=30)
 		print("Sentence Rep Thresholds:")
-		thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options)
+		thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options_sentence)
 		print("Centroid Thresholds:")
-		thresholds_centroids = tuneThresholds(centroid_similarities, dev_targets, newEmotions, threshold_options)
+		thresholds_centroids = tuneThresholds(centroid_similarities, dev_targets, newEmotions, threshold_options_centroids)
 		print("Word Thresholds:")
-		thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, threshold_options)
+		thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, threshold_options_word)
 	else:
 		thresholds = 0.5 * np.ones(len(newEmotions))
 		thresholds_centroids = 0.5 * np.ones(len(newEmotions))
@@ -380,9 +386,9 @@ def main():
 		predictions_centroids.append(pred_centroid)
 		predictions_word.append(pred_word)
 
-	outputs_sentence = np.concatenate(outputs_sentence)
-	outputs_centroid = np.concatenate(outputs_centroid)
-	outputs_word = np.concatenate(outputs_word)
+	outputs_sentence = np.stack(outputs_sentence)
+	outputs_centroid = np.stack(outputs_centroid)
+	outputs_word = np.stack(outputs_word)
 			
 	print("Sentence Similarity:")
 	print(classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=False))
