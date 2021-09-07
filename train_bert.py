@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from transformers import BertModel, BertTokenizerFast
+from transformers import BertModel, BertTokenizerFast, AutoTokenizer, AutoModel
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.metrics import f1_score
 
@@ -180,6 +180,7 @@ def main():
 
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 	#tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
+	#tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-mpnet-base-v2")
 
 	if grouping == "ekman":
 		new_emotions = ekEmotions
@@ -214,6 +215,7 @@ def main():
 	#initialize model
 	bert = BertModel.from_pretrained('bert-base-uncased')
 	#sbert = AutoModel.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
+	#sbert = AutoModel.from_pretrained("sentence-transformers/all-mpnet-base-v2")
 	if freeze_bert:
 		for param in bert.parameters():
 			param.requires_grad = False
@@ -257,7 +259,7 @@ def main():
 				'epoch': epoch,
 				'model_state_dict': model.state_dict(),
 				'devF1' : devF1[-1],
-				}, "bert.pt")
+				}, f"{filename}.pt")
 
 	print("Training complete\n")
 
@@ -275,7 +277,7 @@ def main():
 	fig.savefig("plots/learningcurve_" + filename + ".png")
 
 	#Testing metrics
-	bestCheckpoint = torch.load("bert.pt", map_location=device)
+	bestCheckpoint = torch.load(f"{filename}.pt", map_location=device)
 	model.load_state_dict(bestCheckpoint['model_state_dict'])
 	bestEpochDevF1 = bestCheckpoint['epoch']
 	bestDevF1 = bestCheckpoint['devF1']
