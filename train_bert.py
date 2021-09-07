@@ -36,6 +36,25 @@ class BERT_Model(nn.Module):
 		out = self.fc(cls_hs)
 		return out
 
+class SBERT_Model(nn.Module):
+	def __init__(self, sbert, numEmotions):
+		super(SBERT_Model, self).__init__()
+		self.sbert = sbert
+		self.fc = nn.Linear(384, numEmotions)
+
+	def forward(self, sent_id, mask):
+		att = self.sbert(sent_id, attention_mask=mask)
+		embed = self.mean_pooling(att, mask)
+		out = self.fc(embed)
+		return out
+
+	def mean_pooling(self, model_output, attention_mask):
+		token_embeddings = model_output[0] #First element of model_output contains all token embeddings
+		input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+		sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1)
+		sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+		return sum_embeddings / sum_mask
+
 
 def makeBERTDataset(data, tokenizer, max_length, emotions, new_emotions=None, idx_map=None):
 	if idx_map is None:
@@ -160,6 +179,7 @@ def main():
 	dev = getValSet()
 
 	tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
+	#tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
 
 	if grouping == "ekman":
 		new_emotions = ekEmotions
@@ -193,10 +213,12 @@ def main():
 
 	#initialize model
 	bert = BertModel.from_pretrained('bert-base-uncased')
+	#sbert = AutoModel.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
 	if freeze_bert:
 		for param in bert.parameters():
 			param.requires_grad = False
 	model = BERT_Model(bert, len(emotions))
+	#model = SBERT_Model(sbert, len(emotions))
 	model = model.to(device)
 	wandb.watch(model)
 
