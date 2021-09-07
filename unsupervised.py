@@ -195,7 +195,7 @@ def main():
 
 	#testsplit = 0.9
 
-	splits = [0.95, 0.9, 0.8, 0.7, 0.6, 0.5]
+	splits = [0.95, 0.9, 0.8]
 
 	config.framework = framework
 	config.grouping = grouping
@@ -212,7 +212,7 @@ def main():
 		emotions = getEmotions()
 		emotions.remove("neutral")
 		if sentence == "s-bert":
-			bertfile = "sbert.pt"
+			bertfile = "sbert_small.pt"
 		else:
 			bertfile = "bert_best.pt"
 
@@ -282,7 +282,7 @@ def main():
 
 	for testsplit in splits:
 		print("************************************************")
-		print("Test Split: {testsplit}")
+		print(f"Test Split: {testsplit}")
 		dev_data, test_data = train_test_split(all_data, test_size=testsplit)
 
 		#dev_indices, test_indices = train_test_split([i for i in range(len(all_data))], test_size=testsplit, random_state=42)
@@ -327,9 +327,9 @@ def main():
 			if sentence == "s-bert":
 				threshold_options_sentence = np.linspace(0, 0.5, num=30)
 			else:
-				threshold_options_sentence = np.linspace(0.4,0.95, num=30)
+				threshold_options_sentence = np.linspace(0.3,0.95, num=30)
 
-			threshold_options_centroids = np.linspace(0.1,0.6, num=30)
+			threshold_options_centroids = np.linspace(0.1,0.8, num=30)
 			threshold_options_word = np.linspace(0.1,0.8, num=30)
 			print("Sentence Rep Thresholds:")
 			thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options_sentence)
@@ -444,7 +444,7 @@ def main():
 			confusion = False
 
 	if len(splits) > 1:
-		dev_splits = 1 - np.arary(splits)
+		dev_splits = 1 - np.array(splits)
 		wandb.log({
 			"unsupervised_precision" : wandb.plot.line_series(
 		        xs=dev_splits,
