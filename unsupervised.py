@@ -24,7 +24,7 @@ import torch.nn.functional as F
 wandb.init(project='SAILGoemotions', entity='justinolah')
 config = wandb.config
 
-seed_value=42
+seed_value = 42
 np.random.seed(seed_value)
 torch.manual_seed(seed_value)
 random.seed(seed_value) 
@@ -311,12 +311,12 @@ def main():
 	
 	if tune_thresholds == True:
 		if sentence == "s-bert":
-			threshold_options_sentence = np.linspace(0.05,0.5, num=30)
+			threshold_options_sentence = np.linspace(0, 0.5, num=30)
 		else:
 			threshold_options_sentence = np.linspace(0.4,0.95, num=30)
 
 		threshold_options_centroids = np.linspace(0.1,0.6, num=30)
-		threshold_options_word = np.linspace(0.2,0.8, num=30)
+		threshold_options_word = np.linspace(0.1,0.8, num=30)
 		print("Sentence Rep Thresholds:")
 		thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options_sentence)
 		print("Centroid Thresholds:")
@@ -405,12 +405,9 @@ def main():
 	wandb.log({"Unsupervised": table})
 
 	if confusion == True:
-		multilabel_confusion_matrix(np.array(targets), np.array(outputs_sentence), newEmotions, top_x=3, filename=f"{dataset}_unsupervised_sentence")
-		multilabel_confusion_matrix(np.array(targets), np.array(outputs_centroid), newEmotions, top_x=3, filename=f"{dataset}_unsupervised_centroid")
-		multilabel_confusion_matrix(np.array(targets), np.array(outputs_word), newEmotions, top_x=3, filename=f"{dataset}_unsupervised_word")
-
-
-
+		multilabel_confusion_matrix(np.array(targets), np.array(outputs_sentence) - thresholds, newEmotions, top_x=3, filename=f"{dataset}_unsupervised_sentence")
+		multilabel_confusion_matrix(np.array(targets), np.array(outputs_centroid) - thresholds_centroids, newEmotions, top_x=3, filename=f"{dataset}_unsupervised_centroid")
+		multilabel_confusion_matrix(np.array(targets), np.array(outputs_word) - thresholds_word, newEmotions, top_x=3, filename=f"{dataset}_unsupervised_word")
 
 
 if __name__ == '__main__':
