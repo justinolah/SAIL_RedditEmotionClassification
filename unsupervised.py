@@ -4,14 +4,12 @@ from wordnet import getDefinition
 
 import nltk
 from nltk.corpus import stopwords
-from transformers import BertModel, BertTokenizerFast
+from transformers import BertModel, BertTokenizerFast, AutoTokenizer, AutoModel
 from torchtext.vocab import GloVe
 
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import TensorDataset, DataLoader, Subset
 from sklearn.metrics import classification_report, f1_score
 from sklearn.model_selection import train_test_split
-
-from transformers import AutoTokenizer, AutoModel
 
 from tqdm import tqdm
 
@@ -85,9 +83,10 @@ class BERT_Model(nn.Module):
 		return cls_hs
 
 class SBERT_Model(nn.Module):
-	def __init__(self, sbert):
+	def __init__(self, sbert, numEmotions):
 		super(SBERT_Model, self).__init__()
 		self.sbert = sbert
+		self.fc = nn.Linear(384, numEmotions)
 
 	def forward(self, sent_id, mask):
 		output = self.sbert(sent_id, attention_mask=mask)
@@ -173,13 +172,15 @@ def tuneThresholds(similarities, targets, emotions, threshold_options):
 def main():
 	if torch.cuda.is_available():
 		print("Using cuda...")
-		torch.cuda.set_device(2)
-		device = torch.device("cuda:2")
+		torch.cuda.set_device(3)
+		device = torch.device("cuda:3")
 	else:
 		print("Using cpu...")
 		device = torch.device("cpu")
 
 	confusion = True
+	save_report = True
+	print_examples = True
 
 	max_length = 128
 	batch_size = 16
@@ -192,7 +193,9 @@ def main():
 	word_dim = 200
 	sentence = "s-bert"
 
-	testsplit = 0.9
+	#testsplit = 0.9
+
+	splits = [0.95, 0.9, 0.8, 0.7, 0.6, 0.5]
 
 	config.framework = framework
 	config.grouping = grouping
@@ -208,7 +211,10 @@ def main():
 	else:
 		emotions = getEmotions()
 		emotions.remove("neutral")
-		bertfile = "bert_best.pt"
+		if sentence == "s-bert":
+			bertfile = "sbert.pt"
+		else:
+			bertfile = "bert_best.pt"
 
 	if dataset == "semeval":
 		newEmotions = getSemEvalEmotions()
@@ -228,41 +234,25 @@ def main():
 		print("Invalid dataset")
 		return
 
-	dev_data, test_data = train_test_split(all_data, test_size=testsplit, random_state=42)
-	print(f"Dev Set: {len(dev_data)}")
-	print(f"Test Set: {len(test_data)}")
-
-	if sentence == "s-bert":
-		tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
-	else:
-		tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
-
-	if dataset == "semeval":
-		test_set = makeBERTDatasetSemEval(test_data, tokenizer, max_length, newEmotions)
-		dev_set = makeBERTDatasetSemEval(dev_data, tokenizer, max_length, newEmotions)
-	elif dataset == "goemotions":
-		test_set = makeBERTDatasetGoEmotions(test_data, tokenizer, max_length, newEmotions)
-		dev_set = makeBERTDatasetGoEmotions(dev_data, tokenizer, max_length, newEmotions)
-
-	testloader = DataLoader(test_set, batch_size=batch_size)
-	devloader = DataLoader(dev_set, batch_size=batch_size)
-
 	if sentence == "s-bert":
 		sbert = AutoModel.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
+		tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
 		sentence_dim = 384
-		model = SBERT_Model(sbert)
+		model = SBERT_Model(sbert, len(emotions))
 		model = model.to(device)
 	else:
 		bert = BertModel.from_pretrained('bert-base-uncased')
+		tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 		sentence_dim = 768
 		model = BERT_Model(bert, len(emotions))
 		model = model.to(device)
 
-		if goemotions_trained == True:
-			checkpoint = torch.load(bertfile, map_location=device)
-			model.load_state_dict(checkpoint['model_state_dict'])
+	if goemotions_trained == True:
+		checkpoint = torch.load(bertfile, map_location=device)
+		model.load_state_dict(checkpoint['model_state_dict'])
 
-	model.eval()
+	config.sentence_dim = sentence_dim
+	model.eval()	
 
 	#expand labels with definitions
 	expanded = []
@@ -280,135 +270,204 @@ def main():
 	emotion_mask = torch.tensor(emotion_input['attention_mask'])
 
 	emotion_vecs = model(emotion_ids.to(device), emotion_mask.to(device))
-	emotion_vecs = emotion_vecs.cpu()
+	emotion_vecs = emotion_vecs
 
-	#Glove word embeddings
 	wordEmbedding = GloVe(name='twitter.27B', dim=word_dim)
 	stop_words = stopwords.words('english')
 	emotion_word_vecs = getWordRep(newEmotions, wordEmbedding, stop_words, word_dim)
-	if dataset == "semeval":
-		word_vecs_dev = getWordRep(dev_data.Tweet.tolist(), wordEmbedding, stop_words, word_dim)
-		word_vecs_test = getWordRep(test_data.Tweet.tolist(), wordEmbedding, stop_words, word_dim)
-	elif dataset == "goemotions":
-		word_vecs_dev = getWordRep(dev_data.text.tolist(), wordEmbedding, stop_words, word_dim)
-		word_vecs_test = getWordRep(test_data.text.tolist(), wordEmbedding, stop_words, word_dim)
 
-	#dev tunings
-	dev_vectors, dev_targets = getSentenceRep(devloader, model, sentence_dim, device)
-	centroids = getCentroids(dev_vectors, dev_targets, newEmotions, sentence_dim)
-	similarities = []
-	centroid_similarities = []
-	for i, vec in enumerate(dev_vectors):
-		sim = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
-		centroid_sim = F.cosine_similarity(vec.unsqueeze(0).to(device), centroids.to(device))
-		similarities.append(sim)
-		centroid_similarities.append(centroid_sim)
+	sentence_precision, sentence_recall, sentence_f1 = [], [], []
+	word_precision, word_recall, word_f1 = [], [], []
+	centroid_precision, centroid_recall, centroid_f1 = [], [], []
 
-	word_similarities = []
-	for i, vec in enumerate(word_vecs_dev):
-		sim = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_word_vecs.to(device))
-		word_similarities.append(sim)
-	
-	if tune_thresholds == True:
-		if sentence == "s-bert":
-			threshold_options_sentence = np.linspace(0, 0.5, num=30)
+	for testsplit in splits:
+		print("************************************************")
+		print("Test Split: {testsplit}")
+		dev_data, test_data = train_test_split(all_data, test_size=testsplit)
+
+		#dev_indices, test_indices = train_test_split([i for i in range(len(all_data))], test_size=testsplit, random_state=42)
+		print(f"Dev Set: {len(dev_data)}")
+		print(f"Test Set: {len(test_data)}")
+
+		if dataset == "semeval":
+			test_set = makeBERTDatasetSemEval(test_data, tokenizer, max_length, newEmotions)
+			dev_set = makeBERTDatasetSemEval(dev_data, tokenizer, max_length, newEmotions)
+		elif dataset == "goemotions":
+			test_set = makeBERTDatasetGoEmotions(test_data, tokenizer, max_length, newEmotions)
+			dev_set = makeBERTDatasetGoEmotions(dev_data, tokenizer, max_length, newEmotions)
+
+		testloader = DataLoader(test_set, batch_size=batch_size)
+		devloader = DataLoader(dev_set, batch_size=batch_size)
+
+		#Glove word embeddings
+		if dataset == "semeval":
+			word_vecs_dev = getWordRep(dev_data.Tweet.tolist(), wordEmbedding, stop_words, word_dim)
+			word_vecs_test = getWordRep(test_data.Tweet.tolist(), wordEmbedding, stop_words, word_dim)
+		elif dataset == "goemotions":
+			word_vecs_dev = getWordRep(dev_data.text.tolist(), wordEmbedding, stop_words, word_dim)
+			word_vecs_test = getWordRep(test_data.text.tolist(), wordEmbedding, stop_words, word_dim)
+
+		#dev tunings
+		dev_vectors, dev_targets = getSentenceRep(devloader, model, sentence_dim, device)
+		centroids = getCentroids(dev_vectors, dev_targets, newEmotions, sentence_dim)
+		similarities = []
+		centroid_similarities = []
+		for i, vec in enumerate(dev_vectors):
+			sim = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
+			centroid_sim = F.cosine_similarity(vec.unsqueeze(0).to(device), centroids.to(device))
+			similarities.append(sim)
+			centroid_similarities.append(centroid_sim)
+
+		word_similarities = []
+		for i, vec in enumerate(word_vecs_dev):
+			sim = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_word_vecs.to(device))
+			word_similarities.append(sim)
+		
+		if tune_thresholds == True:
+			if sentence == "s-bert":
+				threshold_options_sentence = np.linspace(0, 0.5, num=30)
+			else:
+				threshold_options_sentence = np.linspace(0.4,0.95, num=30)
+
+			threshold_options_centroids = np.linspace(0.1,0.6, num=30)
+			threshold_options_word = np.linspace(0.1,0.8, num=30)
+			print("Sentence Rep Thresholds:")
+			thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options_sentence)
+			print("Centroid Thresholds:")
+			thresholds_centroids = tuneThresholds(centroid_similarities, dev_targets, newEmotions, threshold_options_centroids)
+			print("Word Thresholds:")
+			thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, threshold_options_word)
 		else:
-			threshold_options_sentence = np.linspace(0.4,0.95, num=30)
+			thresholds = 0.5 * np.ones(len(newEmotions))
+			thresholds_centroids = 0.5 * np.ones(len(newEmotions))
+			thresholds_word = 0.5 * np.ones(len(newEmotions))
 
-		threshold_options_centroids = np.linspace(0.1,0.6, num=30)
-		threshold_options_word = np.linspace(0.1,0.8, num=30)
-		print("Sentence Rep Thresholds:")
-		thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options_sentence)
-		print("Centroid Thresholds:")
-		thresholds_centroids = tuneThresholds(centroid_similarities, dev_targets, newEmotions, threshold_options_centroids)
-		print("Word Thresholds:")
-		thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, threshold_options_word)
-	else:
-		thresholds = 0.5 * np.ones(len(newEmotions))
-		thresholds_centroids = 0.5 * np.ones(len(newEmotions))
-		thresholds_word = 0.5 * np.ones(len(newEmotions))
+		#Evaluation
+		sentence_vecs, targets = getSentenceRep(testloader, model, sentence_dim, device)
 
-	#Evaluation
-	sentence_vecs, targets = getSentenceRep(testloader, model, sentence_dim, device)
+		if dataset == "semeval":
+			texts = test_data.Tweet.tolist()
+		elif dataset == "goemotions":
+			texts = test_data.text.tolist()
 
-	if dataset == "semeval":
-		texts = test_data.Tweet.tolist()
-	elif dataset == "goemotions":
-		texts = test_data.text.tolist()
+		predictions = []
+		predictions_centroids = []
+		predictions_word = []
 
-	predictions = []
-	predictions_centroids = []
-	predictions_word = []
+		outputs_sentence = []
+		outputs_centroid = []
+		outputs_word = []
 
-	outputs_sentence = []
-	outputs_centroid = []
-	outputs_word = []
+		for i, (vec, word_vec) in enumerate(zip(sentence_vecs, word_vecs_test)):
+			similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
+			centroid_similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), centroids.to(device))
+			word_similarities = F.cosine_similarity(word_vec.unsqueeze(0).to(device), emotion_word_vecs.to(device))
 
-	for i, (vec, word_vec) in enumerate(zip(sentence_vecs, word_vecs_test)):
-		similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), emotion_vecs.to(device))
-		centroid_similarities = F.cosine_similarity(vec.unsqueeze(0).to(device), centroids.to(device))
-		word_similarities = F.cosine_similarity(word_vec.unsqueeze(0).to(device), emotion_word_vecs.to(device))
+			pred = (similarities.detach().cpu().numpy() > thresholds).astype(int)
+			pred_centroid = (centroid_similarities.detach().cpu().numpy() > thresholds_centroids).astype(int)
+			pred_word = (word_similarities.detach().cpu().numpy() > thresholds_word).astype(int)
 
-		pred = (similarities.detach().cpu().numpy() > thresholds).astype(int)
-		pred_centroid = (centroid_similarities.detach().cpu().numpy() > thresholds_centroids).astype(int)
-		pred_word = (word_similarities.detach().cpu().numpy() > thresholds_word).astype(int)
+			outputs_sentence.append(similarities.detach().cpu())
+			outputs_centroid.append(centroid_similarities.detach().cpu())
+			outputs_word.append(word_similarities.detach().cpu())
 
-		outputs_sentence.append(similarities.detach().cpu())
-		outputs_centroid.append(centroid_similarities.detach().cpu())
-		outputs_word.append(word_similarities.detach().cpu())
+			predictions.append(pred)
+			predictions_centroids.append(pred_centroid)
+			predictions_word.append(pred_word)
 
-		if i < 5:
-			print(texts[i])
-			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
-			print(f"predicted label: {','.join([newEmotions[index] for index, num in enumerate(pred.tolist()) if num == 1])}")
-			print("Sentence Similarity")
-			for index in similarities.argsort(descending=True):
-				print(f"label: {newEmotions[index]}, similarity: {similarities[index]}") 
-			print("")
-		elif i < 10:
-			print(texts[i])
-			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
-			print(f"predicted label: {','.join([newEmotions[index] for index, num in enumerate(pred_centroid.tolist()) if num == 1])}")
-			print("Centroid Similarity")
-			for index in centroid_similarities.argsort(descending=True):
-				print(f"label: {newEmotions[index]}, similarity: {centroid_similarities[index]}") 
-			print("")
-		elif i < 15:
-			print(texts[i])
-			print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
-			print(f"predicted label: {','.join([newEmotions[index] for index, num in enumerate(pred_word.tolist()) if num == 1])}")
-			print("Word Similarity")
-			for index in word_similarities.argsort(descending=True):
-				print(f"label: {newEmotions[index]}, similarity: {word_similarities[index]}") 
-			print("")
+			if print_examples == True:
+				if i < 5:
+					print(texts[i])
+					print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
+					print(f"predicted label: {','.join([newEmotions[index] for index, num in enumerate(pred.tolist()) if num == 1])}")
+					print("Sentence Similarity")
+					for index in similarities.argsort(descending=True):
+						print(f"label: {newEmotions[index]}, similarity: {similarities[index]}") 
+					print("")
+				elif i < 10:
+					print(texts[i])
+					print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
+					print(f"predicted label: {','.join([newEmotions[index] for index, num in enumerate(pred_centroid.tolist()) if num == 1])}")
+					print("Centroid Similarity")
+					for index in centroid_similarities.argsort(descending=True):
+						print(f"label: {newEmotions[index]}, similarity: {centroid_similarities[index]}") 
+					print("")
+				elif i < 15:
+					print(texts[i])
+					print(f"actual label: {','.join([newEmotions[index] for index, num in enumerate(targets[i].tolist()) if num == 1])}") 
+					print(f"predicted label: {','.join([newEmotions[index] for index, num in enumerate(pred_word.tolist()) if num == 1])}")
+					print("Word Similarity")
+					for index in word_similarities.argsort(descending=True):
+						print(f"label: {newEmotions[index]}, similarity: {word_similarities[index]}") 
+					print("")
+				print_examples = False
 
-		predictions.append(pred)
-		predictions_centroids.append(pred_centroid)
-		predictions_word.append(pred_word)
+		outputs_sentence = np.stack(outputs_sentence)
+		outputs_centroid = np.stack(outputs_centroid)
+		outputs_word = np.stack(outputs_word)
+				
+		print("Sentence Similarity:")
+		print(classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=False), "\n")
+		print("Word Similarity:")
+		print(classification_report(targets, predictions_word, target_names=newEmotions, zero_division=0, output_dict=False), "\n")
+		print("Centroid Similarity:")
+		print(classification_report(targets, predictions_centroids, target_names=newEmotions, zero_division=0, output_dict=False), "\n")
 
-	outputs_sentence = np.stack(outputs_sentence)
-	outputs_centroid = np.stack(outputs_centroid)
-	outputs_word = np.stack(outputs_word)
-			
-	print("Sentence Similarity:")
-	print(classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=False))
-	report = classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=True)
-	print("")
-	print("Word Similarity:")
-	print(classification_report(targets, predictions_word, target_names=newEmotions, zero_division=0, output_dict=False))
-	print("")
-	print("Centroid Similarity:")
-	print(classification_report(targets, predictions_centroids, target_names=newEmotions, zero_division=0, output_dict=False))
-	print("")
+		report_sentence = classification_report(targets, predictions, target_names=newEmotions, zero_division=0, output_dict=True)
+		report_word = classification_report(targets, predictions_word, target_names=newEmotions, zero_division=0, output_dict=True)
+		report_centroid = classification_report(targets, predictions_centroids, target_names=newEmotions, zero_division=0, output_dict=True)
 
-	table = wandb.Table(dataframe=pd.DataFrame.from_dict(report))
-	wandb.log({"Unsupervised": table})
+		sentence_precision.append(report_sentence['macro avg']['precision'])
+		sentence_recall.append(report_sentence['macro avg']['recall'])
+		sentence_f1.append(report_sentence['macro avg']['f1-score'])
 
-	if confusion == True:
-		multilabel_confusion_matrix(np.array(targets), np.array(outputs_sentence) - thresholds, newEmotions, top_x=3, filename=f"{dataset}_unsupervised_sentence")
-		multilabel_confusion_matrix(np.array(targets), np.array(outputs_centroid) - thresholds_centroids, newEmotions, top_x=3, filename=f"{dataset}_unsupervised_centroid")
-		multilabel_confusion_matrix(np.array(targets), np.array(outputs_word) - thresholds_word, newEmotions, top_x=3, filename=f"{dataset}_unsupervised_word")
+		word_precision.append(report_word['macro avg']['precision'])
+		word_recall.append(report_word['macro avg']['recall'])
+		word_f1.append(report_word['macro avg']['f1-score'])
 
+		centroid_precision.append(report_centroid['macro avg']['precision'])
+		centroid_recall.append(report_centroid['macro avg']['recall'])
+		centroid_f1.append(report_centroid['macro avg']['f1-score'])
+
+
+		if save_report == True:
+			table_sentence = wandb.Table(dataframe=pd.DataFrame.from_dict(report_sentence))
+			table_word = wandb.Table(dataframe=pd.DataFrame.from_dict(report_word))
+			table_centroid = wandb.Table(dataframe=pd.DataFrame.from_dict(report_centroid))
+			wandb.log({"Sentence Rep": table_sentence, "Word Rep": table_word, "Centroid Rep": table_centroid})
+			save_report = False
+
+		if confusion == True:
+			multilabel_confusion_matrix(np.array(targets), np.array(outputs_sentence) - thresholds, newEmotions, top_x=3, filename=f"{dataset}_unsupervised_sentence")
+			multilabel_confusion_matrix(np.array(targets), np.array(outputs_centroid) - thresholds_centroids, newEmotions, top_x=3, filename=f"{dataset}_unsupervised_centroid")
+			multilabel_confusion_matrix(np.array(targets), np.array(outputs_word) - thresholds_word, newEmotions, top_x=3, filename=f"{dataset}_unsupervised_word")
+			confusion = False
+
+	if len(splits) > 1:
+		dev_splits = 1 - np.arary(splits)
+		wandb.log({
+			"unsupervised_precision" : wandb.plot.line_series(
+		        xs=dev_splits,
+		        ys=[sentence_precision, word_precision, centroid_precision],
+		        keys=["Sentence", "Word", "Centroid"],
+		        title="",
+		        xname="Dev Split",
+		        yname="Precision"),
+			"unsupervised_recall" : wandb.plot.line_series(
+		        xs=dev_splits,
+		        ys=[sentence_recall, word_recall, centroid_recall],
+		        keys=["Sentence", "Word", "Centroid"],
+		        title="",
+		        xname="Dev Split",
+		        yname="Recall"),
+			"unsupervised_precision" : wandb.plot.line_series(
+		        xs=dev_splits,
+		        ys=[sentence_f1, word_f1, centroid_f1],
+		        keys=["Sentence", "Word", "Centroid"],
+		        title="",
+		        xname="Dev Split",
+		        yname="Recall"),
+		})
 
 if __name__ == '__main__':
 	main()
