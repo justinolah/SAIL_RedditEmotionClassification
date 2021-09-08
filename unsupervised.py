@@ -200,9 +200,7 @@ def main():
 	word_dim = 200
 	sentence = "s-bert"
 
-	#testsplit = 0.9
-
-	splits = [0.99, 0.95, 0.9, 0.8]
+	splits = [0.995, 0.99, 0.95, 0.9, 0.8, 0.7]
 
 	config.framework = framework
 	config.grouping = grouping
