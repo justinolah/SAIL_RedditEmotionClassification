@@ -455,19 +455,19 @@ def main():
 				xs=dev_splits,
 				ys=[sentence_precision, word_precision, centroid_precision],
 				keys=["Sentence", "Word", "Centroid"],
-				title="",
+				title="Macro Precision",
 				xname="Dev Split"),
 			"unsupervised_recall" : wandb.plot.line_series(
 				xs=dev_splits,
 				ys=[sentence_recall, word_recall, centroid_recall],
 				keys=["Sentence", "Word", "Centroid"],
-				title="",
+				title="Macro Recall",
 				xname="Dev Split"),
-			"unsupervised_precision" : wandb.plot.line_series(
+			"unsupervised_f1" : wandb.plot.line_series(
 				xs=dev_splits,
 				ys=[sentence_f1, word_f1, centroid_f1],
 				keys=["Sentence", "Word", "Centroid"],
-				title="",
+				title="Macro F1",
 				xname="Dev Split"),
 		})
 
