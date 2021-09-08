@@ -7,7 +7,7 @@ from nltk.corpus import stopwords
 from transformers import BertModel, BertTokenizerFast, AutoTokenizer, AutoModel
 from torchtext.vocab import GloVe
 
-from torch.utils.data import TensorDataset, DataLoader, Subset
+from torch.utils.data import TensorDataset, DataLoader
 from sklearn.metrics import classification_report, f1_score
 from sklearn.model_selection import train_test_split
 
@@ -195,7 +195,7 @@ def main():
 
 	#testsplit = 0.9
 
-	splits = [0.95, 0.9, 0.8]
+	splits = [0.99, 0.95, 0.9, 0.8]
 
 	config.framework = framework
 	config.grouping = grouping
@@ -282,36 +282,41 @@ def main():
 	word_precision, word_recall, word_f1 = [], [], []
 	centroid_precision, centroid_recall, centroid_f1 = [], [], []
 
+	if dataset == "semeval":
+		data_set = makeBERTDatasetSemEval(all_data, tokenizer, max_length, newEmotions)
+	elif dataset == "goemotions":
+		data_set = makeBERTDatasetGoEmotions(all_data, tokenizer, max_length, newEmotions)
+
+	loader = DataLoader(data_set, batch_size=batch_size)
+
+	#Glove word embeddings
+	if dataset == "semeval":
+		word_vecs_all = getWordRep(all_data.Tweet.tolist(), wordEmbedding, stop_words, word_dim)
+	elif dataset == "goemotions":
+		word_vecs_all = getWordRep(all_data.text.tolist(), wordEmbedding, stop_words, word_dim)
+
+	sentence_vectors_all, targets_all = getSentenceRep(loader, model, sentence_dim, device)
+
 	for testsplit in splits:
 		print("************************************************")
 		print(f"Test Split: {testsplit}")
-		dev_data, test_data = train_test_split(all_data, test_size=testsplit)
 
-		#dev_indices, test_indices = train_test_split([i for i in range(len(all_data))], test_size=testsplit, random_state=42)
-		print(f"Dev Set: {len(dev_data)}")
-		print(f"Test Set: {len(test_data)}")
+		dev_indices, test_indices = train_test_split([i for i in range(len(all_data))], test_size=testsplit)
 
-		if dataset == "semeval":
-			test_set = makeBERTDatasetSemEval(test_data, tokenizer, max_length, newEmotions)
-			dev_set = makeBERTDatasetSemEval(dev_data, tokenizer, max_length, newEmotions)
-		elif dataset == "goemotions":
-			test_set = makeBERTDatasetGoEmotions(test_data, tokenizer, max_length, newEmotions)
-			dev_set = makeBERTDatasetGoEmotions(dev_data, tokenizer, max_length, newEmotions)
+		print(f"Dev Set: {len(dev_indices)}")
+		print(f"Test Set: {len(test_indices)}")
 
-		testloader = DataLoader(test_set, batch_size=batch_size)
-		devloader = DataLoader(dev_set, batch_size=batch_size)
+		word_vecs_dev = word_vecs_all[dev_indices]
+		word_vecs_test = word_vecs_all[test_indices]
 
-		#Glove word embeddings
-		if dataset == "semeval":
-			word_vecs_dev = getWordRep(dev_data.Tweet.tolist(), wordEmbedding, stop_words, word_dim)
-			word_vecs_test = getWordRep(test_data.Tweet.tolist(), wordEmbedding, stop_words, word_dim)
-		elif dataset == "goemotions":
-			word_vecs_dev = getWordRep(dev_data.text.tolist(), wordEmbedding, stop_words, word_dim)
-			word_vecs_test = getWordRep(test_data.text.tolist(), wordEmbedding, stop_words, word_dim)
+		dev_vectors = sentence_vectors_all[dev_indices]
+		dev_targets = targets_all[dev_indices]
+		centroids = getCentroids(dev_vectors, dev_targets, newEmotions, sentence_dim)
+
+		sentence_vecs = sentence_vectors_all[test_indices]
+		targets = targets_all[test_indices]
 
 		#dev tunings
-		dev_vectors, dev_targets = getSentenceRep(devloader, model, sentence_dim, device)
-		centroids = getCentroids(dev_vectors, dev_targets, newEmotions, sentence_dim)
 		similarities = []
 		centroid_similarities = []
 		for i, vec in enumerate(dev_vectors):
@@ -345,12 +350,10 @@ def main():
 			thresholds_word = 0.5 * np.ones(len(newEmotions))
 
 		#Evaluation
-		sentence_vecs, targets = getSentenceRep(testloader, model, sentence_dim, device)
-
 		if dataset == "semeval":
-			texts = test_data.Tweet.tolist()
+			texts = all_data[test_indices].Tweet.tolist()
 		elif dataset == "goemotions":
-			texts = test_data.text.tolist()
+			texts = all_data[test_indices].text.tolist()
 
 		predictions = []
 		predictions_centroids = []
