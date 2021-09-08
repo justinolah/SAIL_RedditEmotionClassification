@@ -218,6 +218,7 @@ def main():
 
 	if dataset == "semeval":
 		newEmotions = getSemEvalEmotions()
+		top_x = 2
 		train = pd.read_csv(DIR + TRAIN_DIR, sep='\t')
 		test = pd.read_csv(DIR + TEST_DIR, sep='\t')
 		dev = pd.read_csv(DIR + DEV_DIR, sep='\t')
@@ -225,6 +226,7 @@ def main():
 		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
 		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
 	elif dataset == "goemotions":
+		top_x = 3
 		newEmotions = getEmotions()
 		newEmotions.remove("neutral")
 		test = getTestSet()
@@ -438,35 +440,32 @@ def main():
 			save_report = False
 
 		if confusion == True:
-			multilabel_confusion_matrix(np.array(targets), np.array(outputs_sentence) - thresholds, newEmotions, top_x=3, filename=f"{dataset}_unsupervised_sentence")
-			multilabel_confusion_matrix(np.array(targets), np.array(outputs_centroid) - thresholds_centroids, newEmotions, top_x=3, filename=f"{dataset}_unsupervised_centroid")
-			multilabel_confusion_matrix(np.array(targets), np.array(outputs_word) - thresholds_word, newEmotions, top_x=3, filename=f"{dataset}_unsupervised_word")
+			multilabel_confusion_matrix(np.array(targets), np.array(outputs_sentence) - thresholds, newEmotions, top_x=top_x, filename=f"{dataset}_unsupervised_sentence")
+			multilabel_confusion_matrix(np.array(targets), np.array(outputs_centroid) - thresholds_centroids, newEmotions, top_x=top_x, filename=f"{dataset}_unsupervised_centroid")
+			multilabel_confusion_matrix(np.array(targets), np.array(outputs_word) - thresholds_word, newEmotions, top_x=top_x, filename=f"{dataset}_unsupervised_word")
 			confusion = False
 
 	if len(splits) > 1:
 		dev_splits = 1 - np.array(splits)
 		wandb.log({
 			"unsupervised_precision" : wandb.plot.line_series(
-		        xs=dev_splits,
-		        ys=[sentence_precision, word_precision, centroid_precision],
-		        keys=["Sentence", "Word", "Centroid"],
-		        title="",
-		        xname="Dev Split",
-		        yname="Precision"),
+				xs=dev_splits,
+				ys=[sentence_precision, word_precision, centroid_precision],
+				keys=["Sentence", "Word", "Centroid"],
+				title="",
+				xname="Dev Split"),
 			"unsupervised_recall" : wandb.plot.line_series(
-		        xs=dev_splits,
-		        ys=[sentence_recall, word_recall, centroid_recall],
-		        keys=["Sentence", "Word", "Centroid"],
-		        title="",
-		        xname="Dev Split",
-		        yname="Recall"),
+				xs=dev_splits,
+				ys=[sentence_recall, word_recall, centroid_recall],
+				keys=["Sentence", "Word", "Centroid"],
+				title="",
+				xname="Dev Split"),
 			"unsupervised_precision" : wandb.plot.line_series(
-		        xs=dev_splits,
-		        ys=[sentence_f1, word_f1, centroid_f1],
-		        keys=["Sentence", "Word", "Centroid"],
-		        title="",
-		        xname="Dev Split",
-		        yname="Recall"),
+				xs=dev_splits,
+				ys=[sentence_f1, word_f1, centroid_f1],
+				keys=["Sentence", "Word", "Centroid"],
+				title="",
+				xname="Dev Split"),
 		})
 
 if __name__ == '__main__':
