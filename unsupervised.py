@@ -150,6 +150,8 @@ def getWordRep(texts, wordEmbedding, stop_words, word_dim):
 	return vecs
 
 def tuneThresholds(similarities, targets, emotions, threshold_options):
+	if len(similarities) == 0:
+		return 0.5 * np.ones(len(emotions))
 	thresholds = []
 	
 	for i, emotion in enumerate(emotions):
