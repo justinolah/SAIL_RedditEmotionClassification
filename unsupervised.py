@@ -351,9 +351,9 @@ def main():
 
 		#Evaluation
 		if dataset == "semeval":
-			texts = all_data[test_indices].Tweet.tolist()
+			texts = all_data.Tweet.to_numpy()[test_indices]
 		elif dataset == "goemotions":
-			texts = all_data[test_indices].text.tolist()
+			texts = all_data.text.to_numpy()[test_indices]
 
 		predictions = []
 		predictions_centroids = []
