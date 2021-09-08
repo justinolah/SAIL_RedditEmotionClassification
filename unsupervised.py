@@ -126,8 +126,12 @@ def getSentenceRep(dataloader, model, sentence_dim, device):
 def getCentroids(vecs, labels, emotions, sentence_dim):
 	centroids = torch.Tensor(len(emotions), sentence_dim)
 	for i, emotion in enumerate(emotions):
-		centroid = vecs[labels[:,i] == 1].mean(axis=0)
-		centroids[i,:] = centroid
+		v = vecs[labels[:,i] == 1]
+		if len(v) > 0:
+			centroid = v.mean(axis=0)
+			centroids[i,:] = centroid
+		else:
+			centroids[i,:] = torch.zeros(sentence_dim)
 	return centroids
 
 
@@ -152,6 +156,7 @@ def getWordRep(texts, wordEmbedding, stop_words, word_dim):
 def tuneThresholds(similarities, targets, emotions, threshold_options):
 	if len(similarities) == 0:
 		return 0.5 * np.ones(len(emotions))
+
 	thresholds = []
 	
 	for i, emotion in enumerate(emotions):
