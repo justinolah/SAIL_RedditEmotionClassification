@@ -86,7 +86,7 @@ class SBERT_Model(nn.Module):
 	def __init__(self, sbert, numEmotions):
 		super(SBERT_Model, self).__init__()
 		self.sbert = sbert
-		self.fc = nn.Linear(384, numEmotions)
+		self.fc = nn.Linear(768, numEmotions)
 
 	def forward(self, sent_id, mask):
 		output = self.sbert(sent_id, attention_mask=mask)
