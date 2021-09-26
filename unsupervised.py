@@ -229,7 +229,7 @@ def main():
 		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
 		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
 
-		splits = list(np.linespace(0.995, 0.94, num=8))
+		splits = list(np.linspace(0.995, 0.94, num=8))
 	elif dataset == "goemotions":
 		top_x = 3
 		newEmotions = getEmotions()
@@ -238,7 +238,7 @@ def main():
 		dev = getValSet()
 		all_data = pd.concat([test, dev])
 
-		splits = list(np.linespace(0.995, 0.90, num=8))
+		splits = list(np.linspace(0.995, 0.90, num=8))
 	else:
 		print("Invalid dataset")
 		return
