@@ -200,8 +200,6 @@ def main():
 	word_dim = 200
 	sentence = "s-bert"
 
-	splits = [0.995, 0.99, 0.95, 0.9, 0.8, 0.7]
-
 	config.framework = framework
 	config.grouping = grouping
 	config.dataset = dataset
@@ -230,6 +228,8 @@ def main():
 		all_data = pd.concat([train, test, dev])
 		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"\B@\w+", "@mention", x))
 		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
+
+		splits = list(np.linespace(0.995, 0.94, num=8))
 	elif dataset == "goemotions":
 		top_x = 3
 		newEmotions = getEmotions()
@@ -237,14 +237,16 @@ def main():
 		test = getTestSet()
 		dev = getValSet()
 		all_data = pd.concat([test, dev])
+
+		splits = list(np.linespace(0.995, 0.90, num=8))
 	else:
 		print("Invalid dataset")
 		return
 
 	if sentence == "s-bert":
-		sbert = AutoModel.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
-		tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/paraphrase-MiniLM-L6-v2")
-		sentence_dim = 384
+		sbert = AutoModel.from_pretrained("sentence-transformers/all-mpnet-base-v2")
+		tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-mpnet-base-v2")
+		sentence_dim = 768
 		model = SBERT_Model(sbert, len(emotions))
 		model = model.to(device)
 	else:
@@ -336,13 +338,9 @@ def main():
 			word_similarities.append(sim)
 		
 		if tune_thresholds == True:
-			if sentence == "s-bert":
-				threshold_options_sentence = np.linspace(0, 0.5, num=30)
-			else:
-				threshold_options_sentence = np.linspace(0.3,0.95, num=30)
-
-			threshold_options_centroids = np.linspace(0.1,0.8, num=30)
-			threshold_options_word = np.linspace(0.1,0.8, num=30)
+			threshold_options_sentence = np.linspace(0,1, num=30)
+			threshold_options_centroids = np.linspace(0,1, num=30)
+			threshold_options_word = np.linspace(0,1, num=30)
 			print("Sentence Rep Thresholds:")
 			thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options_sentence)
 			print("Centroid Thresholds:")
