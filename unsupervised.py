@@ -215,7 +215,7 @@ def main():
 		emotions = getEmotions()
 		emotions.remove("neutral")
 		if sentence == "s-bert":
-			bertfile = "sbert_small.pt"
+			bertfile = "sbert_large.pt"
 		else:
 			bertfile = "bert_best.pt"
 
