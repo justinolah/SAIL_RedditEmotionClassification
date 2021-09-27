@@ -339,14 +339,12 @@ def main():
 		
 		if tune_thresholds == True:
 			threshold_options_sentence = np.linspace(0,1, num=30)
-			threshold_options_centroids = np.linspace(0,1, num=30)
-			threshold_options_word = np.linspace(0,1, num=30)
 			print("Sentence Rep Thresholds:")
-			thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options_sentence)
+			thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options)
 			print("Centroid Thresholds:")
-			thresholds_centroids = tuneThresholds(centroid_similarities, dev_targets, newEmotions, threshold_options_centroids)
+			thresholds_centroids = tuneThresholds(centroid_similarities, dev_targets, newEmotions, threshold_options)
 			print("Word Thresholds:")
-			thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, threshold_options_word)
+			thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, threshold_options)
 		else:
 			thresholds = 0.5 * np.ones(len(newEmotions))
 			thresholds_centroids = 0.5 * np.ones(len(newEmotions))
