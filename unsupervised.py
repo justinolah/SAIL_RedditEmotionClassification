@@ -304,6 +304,7 @@ def main():
 
 	sentence_vectors_all, targets_all = getSentenceRep(loader, model, sentence_dim, device)
 
+	dev_set_size = []
 	for testsplit in splits:
 		print("************************************************")
 		print(f"Test Split: {testsplit}")
@@ -312,6 +313,7 @@ def main():
 
 		print(f"Dev Set: {len(dev_indices)}")
 		print(f"Test Set: {len(test_indices)}")
+		dev_set_size.append(len(dev_indices))
 
 		word_vecs_dev = word_vecs_all[dev_indices]
 		word_vecs_test = word_vecs_all[test_indices]
@@ -338,7 +340,7 @@ def main():
 			word_similarities.append(sim)
 		
 		if tune_thresholds == True:
-			threshold_options_sentence = np.linspace(0,1, num=30)
+			threshold_options = np.linspace(0,1, num=30)
 			print("Sentence Rep Thresholds:")
 			thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options)
 			print("Centroid Thresholds:")
