@@ -304,6 +304,7 @@ def main():
 
 	sentence_vectors_all, targets_all = getSentenceRep(loader, model, sentence_dim, device)
 
+	dev_set_size = []
 	for testsplit in splits:
 		print("************************************************")
 		print(f"Test Split: {testsplit}")
@@ -312,6 +313,7 @@ def main():
 
 		print(f"Dev Set: {len(dev_indices)}")
 		print(f"Test Set: {len(test_indices)}")
+		dev_set_size.append(len(dev_indices))
 
 		word_vecs_dev = word_vecs_all[dev_indices]
 		word_vecs_test = word_vecs_all[test_indices]
@@ -338,15 +340,13 @@ def main():
 			word_similarities.append(sim)
 		
 		if tune_thresholds == True:
-			threshold_options_sentence = np.linspace(0,1, num=30)
-			threshold_options_centroids = np.linspace(0,1, num=30)
-			threshold_options_word = np.linspace(0,1, num=30)
+			threshold_options = np.linspace(0,1, num=30)
 			print("Sentence Rep Thresholds:")
-			thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options_sentence)
+			thresholds = tuneThresholds(similarities, dev_targets, newEmotions, threshold_options)
 			print("Centroid Thresholds:")
-			thresholds_centroids = tuneThresholds(centroid_similarities, dev_targets, newEmotions, threshold_options_centroids)
+			thresholds_centroids = tuneThresholds(centroid_similarities, dev_targets, newEmotions, threshold_options)
 			print("Word Thresholds:")
-			thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, threshold_options_word)
+			thresholds_word = tuneThresholds(word_similarities, dev_targets, newEmotions, threshold_options)
 		else:
 			thresholds = 0.5 * np.ones(len(newEmotions))
 			thresholds_centroids = 0.5 * np.ones(len(newEmotions))
@@ -455,23 +455,23 @@ def main():
 		dev_splits = 1 - np.array(splits)
 		wandb.log({
 			"unsupervised_precision" : wandb.plot.line_series(
-				xs=dev_splits,
+				xs=dev_set_size,
 				ys=[sentence_precision, word_precision, centroid_precision],
 				keys=["Sentence", "Word", "Centroid"],
 				title="Macro Precision",
-				xname="Dev Split"),
+				xname="Dev Set Size"),
 			"unsupervised_recall" : wandb.plot.line_series(
-				xs=dev_splits,
+				xs=dev_set_size,
 				ys=[sentence_recall, word_recall, centroid_recall],
 				keys=["Sentence", "Word", "Centroid"],
 				title="Macro Recall",
-				xname="Dev Split"),
+				xname="Dev Set Size"),
 			"unsupervised_f1" : wandb.plot.line_series(
-				xs=dev_splits,
+				xs=dev_set_size,
 				ys=[sentence_f1, word_f1, centroid_f1],
 				keys=["Sentence", "Word", "Centroid"],
 				title="Macro F1",
-				xname="Dev Split"),
+				xname="Dev Set Size"),
 		})
 
 if __name__ == '__main__':
