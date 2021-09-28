@@ -8,3 +8,4 @@ optimism
 pessimism
 sadness
 surprise
+trust
