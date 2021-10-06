@@ -230,6 +230,21 @@ def main():
 		all_data.Tweet = all_data.Tweet.apply(lambda x: re.sub(r"&amp;", "&", x))
 
 		splits = list(np.linspace(0.995, 0.94, num=8))
+
+		splits = [
+		1-0.005,
+		1-0.01286,
+		1-0.02071,
+		1-0.02857,
+		1-0.03643,
+		1-0.04429,
+		1-0.05214,
+		1-0.06,
+		1-0.06786,
+		1-0.07572,
+		1-0.08358,
+		]
+
 	elif dataset == "goemotions":
 		top_x = 3
 		newEmotions = getEmotions()
